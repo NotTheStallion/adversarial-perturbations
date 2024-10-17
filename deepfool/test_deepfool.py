@@ -12,15 +12,16 @@ import torchvision.models as models
 from PIL import Image
 from deepfool import deepfool
 import os
+from torchvision.models import ResNet34_Weights
 
 # Load pretrained ResNet-34 model
-net = models.resnet34(pretrained=True)
+net = models.resnet34(weights=ResNet34_Weights.DEFAULT)
 
 # Switch to evaluation mode
 net.eval()
 
 # Load image
-im_orig = Image.open('Python/test_im2.jpg')
+im_orig = Image.open('data/test_img2.jpg')
 
 # Mean and std used for normalization (ImageNet stats)
 mean = [0.485, 0.456, 0.406]
@@ -38,7 +39,7 @@ im = transforms.Compose([
 r, loop_i, label_orig, label_pert, pert_image = deepfool(im, net)
 
 # Load class labels from file
-labels = open(os.path.join('Python/synset_words.txt'), 'r').read().split('\n')
+labels = open(os.path.join('data/synset_words.txt'), 'r').read().split('\n')
 
 # Get original and perturbed class labels
 str_label_orig = labels[int(label_orig)].split(',')[0]  # Changed np.int to int
