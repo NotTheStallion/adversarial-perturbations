@@ -27,7 +27,7 @@ def make_examples():
     perturbed_images = []
     perturbed_labels = []
 
-    for i in range(1, 4):
+    for i in range(1, 6):
         # Load image
         im_orig = Image.open(f"data/test_img{i}.jpg")
         original_images.append(im_orig)
@@ -56,8 +56,8 @@ def make_examples():
         str_label_orig = labels[int(label_orig)].split(",")[0]  # Changed np.int to int
         str_label_pert = labels[int(label_pert)].split(",")[0]
 
-        original_labels.append(str_label_orig)
-        perturbed_labels.append(str_label_pert)
+        original_labels.append(str_label_orig.split()[1])
+        perturbed_labels.append(str_label_pert.split()[1])
 
         # Function to clip tensor values between minv and maxv
         def clip_tensor(A, minv, maxv):
@@ -92,15 +92,15 @@ def make_examples():
 
 original_images, original_labels, perturbed_images, perturbed_labels = make_examples()
 
-fig, ax = plt.subplots(2, 3, figsize=(12, 8))
-for col in range(3):
+fig, ax = plt.subplots(2, 5, figsize=(12, 8))
+for col in range(5):
     ax[0][col].imshow(original_images[col])
-    ax[0][col].set_title(original_labels[col])
+    ax[0][col].set_title(f"Original: {original_labels[col]}")
     ax[0][col].axis("off")
 
-for col in range(3):
+for col in range(5):
     ax[1][col].imshow(perturbed_images[col])
-    ax[1][col].set_title(perturbed_labels[col])
+    ax[1][col].set_title(f"Perturberd: {perturbed_labels[col]}")
     ax[1][col].axis("off")
 
 fig.suptitle("DeepFool attack on ResNet34")
