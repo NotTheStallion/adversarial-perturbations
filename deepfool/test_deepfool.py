@@ -56,8 +56,8 @@ def make_examples():
         str_label_orig = labels[int(label_orig)].split(",")[0]  # Changed np.int to int
         str_label_pert = labels[int(label_pert)].split(",")[0]
 
-        original_labels.append(str_label_orig.split()[1])
-        perturbed_labels.append(str_label_pert.split()[1])
+        original_labels.append(str_label_orig.split()[1:])
+        perturbed_labels.append(str_label_pert.split()[1:])
 
         # Function to clip tensor values between minv and maxv
         def clip_tensor(A, minv, maxv):
