@@ -12,12 +12,11 @@ import torchvision.models as models
 from PIL import Image
 from deepfool import deepfool
 import os
-from torchvision.models import ResNet34_Weights
 
 
 def make_examples():
     # Load pretrained ResNet-34 model
-    net = models.resnet34(weights=ResNet34_Weights.DEFAULT)
+    net = models.resnet34(weights=models.ResNet34_Weights.DEFAULT)
 
     # Switch to evaluation mode
     net.eval()

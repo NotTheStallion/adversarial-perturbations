@@ -1,5 +1,5 @@
 import numpy as np
-import zero_deepfool as deepfool
+import deepfool
 from PIL import Image
 import trainer
 import torch

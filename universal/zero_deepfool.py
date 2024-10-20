@@ -17,7 +17,7 @@ def deepfool(image, net, num_classes=10, overshoot=0.02, max_iter=50):
 
     is_cuda = torch.cuda.is_available()
 
-    if is_cuda:
+    if is_cuda and False:
         print("Using GPU")
         image = image.cuda()
         net = net.cuda()

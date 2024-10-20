@@ -44,23 +44,21 @@ class trainer:
 
 
             # Print accuracy after every epoch
-            accuracy = compute_accuracy(self.net, testloader)
+            accuracy = self.evaluate(testloader)
             print('Accuracy of the network on the 10000 test images: %d %%' % (100 * accuracy))
 
         print('Finished Training')
         return accuracy
 
-
-
-def compute_accuracy(net, testloader):
-    net.eval()
-    correct = 0
-    total = 0
-    with torch.no_grad():
-        for images, labels in testloader:
-            images, labels = images.to(device), labels.to(device)
-            outputs = net(images)
-            _, predicted = torch.max(outputs.data, 1)
-            total += labels.size(0)
-            correct += (predicted == labels).sum().item()
-    return correct / total
+    def evaluate(self, testloader):
+        self.net.eval()
+        correct = 0
+        total = 0
+        with torch.no_grad():
+            for images, labels in testloader:
+                images, labels = images.to(device), labels.to(device)
+                outputs = self.net(images)
+                _, predicted = torch.max(outputs.data, 1)
+                total += labels.size(0)
+                correct += (predicted == labels).sum().item()
+        return correct / total
