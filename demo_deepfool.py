@@ -10,7 +10,7 @@ import torch.utils.data as data_utils
 import math
 import torchvision.models as models
 from PIL import Image
-from deepfool import deepfool
+from deepfool.deepfool import deepfool
 import os
 
 
@@ -49,7 +49,11 @@ def make_examples():
         r, loop_i, label_orig, label_pert, pert_image = deepfool(im, net)
 
         # Load class labels from file
-        labels = open(os.path.join("data/synset_words.txt"), "r").read().split("\n")
+        labels = (
+            open(os.path.join("datasets/demo_deepfool/synset_words.txt"), "r")
+            .read()
+            .split("\n")
+        )
 
         # Get original and perturbed class labels
         str_label_orig = labels[int(label_orig)].split(",")[0]  # Changed np.int to int
