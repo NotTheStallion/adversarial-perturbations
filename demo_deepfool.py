@@ -28,7 +28,7 @@ def make_examples():
 
     for i in range(1, 6):
         # Load image
-        im_orig = Image.open(f"data/test_img{i}.jpg")
+        im_orig = Image.open(f"datasets/demo_deepfool/test_img{i}.jpg")
         original_images.append(im_orig)
 
         # Mean and std used for normalization (ImageNet stats)

@@ -2,81 +2,181 @@ import numpy as np
 import torch
 import copy
 
+
 def deepfool(image, net, num_classes=10, overshoot=0.02, max_iter=50):
     """
-       :param image: Image of size HxWx3
-       :param net: network (input: images, output: values of activation **BEFORE** softmax).
-       :param num_classes: num_classes (limits the number of classes to test against, by default = 10)
-       :param overshoot: used as a termination criterion to prevent vanishing updates (default = 0.02).
-       :param max_iter: maximum number of iterations for deepfool (default = 50)
-       :return: minimal perturbation that fools the classifier, number of iterations that it required, new estimated_label and perturbed image
+    DeepFool algorithm for adversarial attacks.
+
+    :param image: Image of size HxWx3
+    :param net: Pre-trained neural network model (input: images, output: activation values BEFORE softmax).
+    :param num_classes: Number of classes to test against. Limits the number of outputs considered. Default = 10.
+    :param overshoot: Overshoot factor to prevent vanishing updates. Default = 0.02.
+    :param max_iter: Maximum number of iterations. Default = 50.
+    :return: Perturbation that fools the classifier, number of iterations, original label, new estimated label, and perturbed image.
     """
-    
+
     is_cuda = torch.cuda.is_available()
 
-    if is_cuda:
+    if is_cuda and False:
         print("Using GPU")
         image = image.cuda()
         net = net.cuda()
     else:
         print("Using CPU")
 
-    # Forward pass to get the output of the network
-    f_image = net.forward(image.unsqueeze(0).requires_grad_(True)).detach().cpu().numpy().flatten()
-    I = np.argsort(f_image)[::-1][:num_classes]  # Sort and take the top num_classes
+    # Getting probability vector
+    f_image = (
+        net.forward(image.unsqueeze(0).requires_grad_(True))
+        .detach()
+        .cpu()
+        .numpy()
+        .flatten()
+    )
+    # Getting top num_classes predictions
+    I = np.argsort(f_image)[::-1][:num_classes]
 
-    label = I[0]  # Get original label
+    # Label of the original image
+    label_orig = I[0]
 
     input_shape = image.cpu().numpy().shape
     pert_image = copy.deepcopy(image)
+    # Perturbation vector
     w = np.zeros(input_shape)
+    # Accumulated perturbation
     r_tot = np.zeros(input_shape)
 
-    loop_i = 0
+    iter = 0
 
-    x = pert_image.unsqueeze(0).requires_grad_(True)
-    print(f"Input shape: {x.shape}")
-    fs = net.forward(x)
-    k_i = label
+    x = pert_image.unsqueeze(0).requires_grad_(
+        True
+    )  # Add batch dimension and enable gradient calculation
+    # print(f"Input shape: {x.shape}")
 
-    while k_i == label and loop_i < max_iter:
+    # Prediction of perturbed image
+    pred_p = net.forward(x)
+    # print(f"Prediction: {pred_p[10]}")
+    label_pert = label_orig
+
+    while label_pert == label_orig and iter < max_iter:
         pert = np.inf
-        fs[0, I[0]].backward(retain_graph=True)
-        grad_orig = x.grad.data.cpu().numpy().copy()
+
+        pred_p[0, label_orig].backward(
+            retain_graph=True
+        )  # Compute gradients for the original class
+        grad_origin = (
+            x.grad.detach().cpu().numpy().copy()
+        )  # Store the original class gradient
 
         for k in range(1, num_classes):
-            x.grad.zero_()  # Clear gradients
+            x.grad.zero_()
 
-            fs[0, I[k]].backward(retain_graph=True)
-            cur_grad = x.grad.data.cpu().numpy().copy()
+            pred_p[0, I[k]].backward(
+                retain_graph=True
+            )  # Backpropagate to get gradient of class `I[k]`
+            cur_grad = (
+                x.grad.detach().cpu().numpy().copy()
+            )  # Store the gradient of the current class
 
-            # Set new w_k and f_k
-            w_k = cur_grad - grad_orig
-            f_k = (fs[0, I[k]] - fs[0, I[0]]).item()
+            # w_k is the direction to move in order to change class
+            w_k = cur_grad - grad_origin  # Eq 8 in the paper
 
-            pert_k = abs(f_k) / np.linalg.norm(w_k.flatten())
+            # Difference in activation between current class and original class
+            f_k = (pred_p[0, I[k]] - pred_p[0, label_orig]).item()  # Eq 8 in the paper
 
-            # Determine which w_k to use
+            # Formula: perturbation = |f_k| / ||w_k|| (L2 norm)
+            pert_k = abs(f_k) / np.linalg.norm(w_k.flatten())  # Eq 8 in the paper
+
+            # Update the perturbation if a smaller one is found
             if pert_k < pert:
                 pert = pert_k
                 w = w_k
 
-        # Compute r_i and r_tot (with small constant for numerical stability)
-        r_i = (pert + 1e-4) * w / np.linalg.norm(w)
-        r_tot = r_tot + r_i
+        # Update the total perturbation
+        r_i = pert * w / np.linalg.norm(w)  # Eq : 9
+        r_tot = r_tot + r_i  # Accumulate total perturbation
 
-        # Apply perturbation to the image
-        pert_image = image + (1 + overshoot) * torch.from_numpy(r_tot).to(image.device)
+        # Apply the perturbation to the image
+        pert_image = image + torch.from_numpy(r_tot).to(image.device)
 
-        # Forward pass with the perturbed image
-        x = pert_image.unsqueeze(0).requires_grad_(True)
-        print(f"Input shape: {x.shape}")
-        input = x.view(x.size()[-4:]).type(torch.cuda.FloatTensor if is_cuda else torch.FloatTensor)
-        fs = net.forward(input)
-        k_i = np.argmax(fs.detach().cpu().numpy().flatten())
+        # Perform forward pass on the perturbed image
+        x = pert_image.requires_grad_(
+            True
+        )  # Recreate the perturbed image tensor with gradient tracking
+        input = x.view(x.size()[-4:]).type(
+            torch.cuda.FloatTensor if is_cuda else torch.FloatTensor
+        )  # Flatten the input
+        pred_p = net.forward(input)  # Forward pass through the network
+        label_pert = np.argmax(
+            pred_p.detach().cpu().numpy().flatten()
+        )  # Predicted class for the perturbed image
 
-        loop_i += 1
+        iter += 1  # Increment the iteration counter
 
-    r_tot = (1 + overshoot) * r_tot
+    # Final perturbation scaling by (1 + overshoot)
+    r_tot = r_tot  # Scaling the perturbation vector
 
-    return r_tot, loop_i, label, k_i, pert_image
+    return (
+        r_tot,
+        iter,
+        label_orig,
+        label_pert,
+        pert_image,
+    )  # Return the total perturbation, iteration count, original and new labels, and perturbed image
+
+
+if __name__ == "__main__":
+    import torch.nn as nn
+    import torchvision.transforms as transforms
+    import numpy as np
+    import matplotlib.pyplot as plt
+    import torch
+    import torchvision.models as models
+    from PIL import Image
+    from zero_deepfool import zero_deepfool  # Assuming deepfool.py is defined as before
+    import os
+    from torchvision.models import ResNet34_Weights
+
+    def test_one_image():
+        # Load pretrained ResNet-34 model
+        net = models.resnet34(weights=ResNet34_Weights.DEFAULT)
+
+        # Switch to evaluation mode
+        net.eval()
+
+        # Load the image
+        im_orig = Image.open(
+            f"data/test_img1.jpg"
+        )  # Change the path as needed for your test image
+
+        # Mean and std used for normalization (ImageNet stats)
+        mean = [0.485, 0.456, 0.406]
+        std = [0.229, 0.224, 0.225]
+
+        # Preprocessing the image: resize, crop, convert to tensor, and normalize
+        im = transforms.Compose(
+            [
+                transforms.Resize(256),  # Rescale image to 256x256
+                transforms.CenterCrop(224),  # Crop to 224x224
+                transforms.ToTensor(),  # Convert to PyTorch Tensor
+                transforms.Normalize(
+                    mean=mean, std=std
+                ),  # Normalize with ImageNet mean and std
+            ]
+        )(im_orig)
+
+        # Run DeepFool attack
+        r, loop_i, label_orig, label_pert, pert_image = zero_deepfool(im, net)
+
+        # Load class labels from file (assuming ImageNet labels are in synset_words.txt)
+        labels = open(os.path.join("data/synset_words.txt"), "r").read().split("\n")
+
+        # Get original and perturbed class labels
+        str_label_orig = labels[int(label_orig)].split(",")[0]  # Original label
+        str_label_pert = labels[int(label_pert)].split(",")[0]  # Perturbed label
+
+        return str_label_orig, str_label_pert
+
+    # Test a single image
+    original_label, perturbed_label = test_one_image()
+
+    print(f"Original label: {original_label} -> Perturbed label: {perturbed_label}")
