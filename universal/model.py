@@ -56,10 +56,7 @@ class ConvNet(nn.Module):
 
         self.fc1 = nn.Linear(1 * 1 * 16, 10)
 
-
-
-
-    def forward(self,x):
+    def forward(self, x):
         x = self.conv1(x)
         x = self.batch1(x)
         x = F.relu(x)
@@ -105,6 +102,3 @@ class ConvNet(nn.Module):
         x = x.reshape(-1, 16)
         x = self.fc1(x)
         return x
-
-
-

@@ -29,7 +29,7 @@ def deepfool(image, net, num_classes, overshoot, max_iter):
     """
 
     is_cuda = torch.cuda.is_available()
-    if is_cuda and False:  # Force CPU
+    if is_cuda:
         image = image.cuda()
         net = net.cuda()
 
@@ -82,7 +82,7 @@ def deepfool(image, net, num_classes, overshoot, max_iter):
         r_i = (pert + 1e-4) * w / np.linalg.norm(w)
         r_tot = np.float32(r_tot + r_i)
 
-        if is_cuda and False:  # Force CPU
+        if is_cuda:
             pert_image = image + (1 + overshoot) * torch.from_numpy(r_tot).cuda()
         else:
             pert_image = image + (1 + overshoot) * torch.from_numpy(r_tot)

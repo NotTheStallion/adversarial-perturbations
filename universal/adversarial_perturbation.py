@@ -1,7 +1,6 @@
 import numpy as np
 import deepfool
 from PIL import Image
-import trainer
 import torch
 from torchvision import transforms
 
@@ -30,20 +29,11 @@ def generate(
     max_iter_df=20,
 ):
     """
-    :param trainset: Pytorch Dataloader with train data
-    :param testset: Pytorch Dataloader with test data
-    :param net: Network to be fooled by the adversarial examples
-    :param delta: 1-delta represents the fooling_rate, and the objective
-    :param max_iter_uni: Maximum number of iterations of the main algorithm
-    :param p: Only p==2 or p==infinity are supported
-    :param num_class: Number of classes on the dataset
-    :param overshoot: Parameter to the Deep_fool algorithm
-    :param max_iter_df: Maximum iterations of the deep fool algorithm
-    :return: perturbation found (not always the same on every run of the algorithm)
+    Generates a universal adversarial perturbation for a neural network.
     """
-
+    # Set the network to evaluation mode
     net.eval()
-    device = "cpu"
+    device = next(net.parameters()).device
 
     # Importing images and creating an array with them
     img_trn = []
@@ -56,44 +46,33 @@ def generate(
         for image2 in image[0]:
             img_tst.append(image2.numpy())
 
-    # Setting the number of images to 300  (A much lower number than the total number of instances on the training set)
-    # To verify the generalization power of the approach
+    # Setting the number of images to 100 for training
     num_img_trn = 100
     index_order = np.arange(num_img_trn)
 
-    # Initializing the perturbation to 0s
-    v = np.zeros([28, 28])
+    # Initializing the perturbation to zeros as a 3D tensor
+    v = np.zeros((1, 1, 28, 28), dtype=np.float32)  # Shape (1, 1, 28, 28)
 
     # Initializing fooling rate and iteration count
     fooling_rate = 0.0
     iter = 0
 
     # Transformers to be applied to images in order to feed them to the network
-    transformer = transforms.ToTensor()
-    transformer1 = transforms.Compose(
-        [
-            transforms.ToTensor(),
-        ]
+    transformer1 = transforms.Compose([transforms.ToTensor()])
+    transformer2 = transforms.Compose(
+        [transforms.Resize(256), transforms.CenterCrop(28)]
     )
 
-    transformer2 = transforms.Compose(
-        [
-            transforms.Resize(256),
-            transforms.CenterCrop(28),
-        ]
-    )
     fooling_rates = [0]
-    accuracies = []
-    accuracies.append(accuracy)
+    accuracies = [accuracy]
     total_iterations = [0]
+
     # Begin of the main loop on Universal Adversarial Perturbations algorithm
     while fooling_rate < 1 - delta and iter < max_iter_uni:
         np.random.shuffle(index_order)
         print("Iteration  ", iter)
 
         for index in index_order:
-            v = v.reshape((v.shape[0], -1))
-
             # Generating the original image from data
             cur_img = Image.fromarray(img_trn[index][0])
             cur_img1 = transformer1(transformer2(cur_img))[np.newaxis, :].to(device)
@@ -103,22 +82,25 @@ def generate(
             torch.cuda.empty_cache()
 
             # Generating a perturbed image from the current perturbation v and the original image
-            per_img = Image.fromarray(transformer2(cur_img) + v.astype(np.uint8))
-            per_img1 = transformer1(transformer2(per_img))[np.newaxis, :].to(device)
+            per_img_array = (
+                transformer2(cur_img) + v.squeeze()
+            )  # Use v.squeeze() directly
+            per_img = Image.fromarray(per_img_array.astype(np.uint8))
+            per_img1 = transformer1(per_img)[np.newaxis, :].to(device)
 
             # Feeding the perturbed image to the network and storing the label returned
             r1 = net(per_img1).max(1)[1]
             torch.cuda.empty_cache()
 
-            # If the label of both images is the same, the perturbation v needs to be updated
+            # If the label of both images is the same, update the perturbation v
             if r1 == r2:
-                print(
+                """ print(
                     ">> k =",
                     np.where(index == index_order)[0][0],
                     ", pass #",
                     iter,
                     end="      ",
-                )
+                ) """
 
                 # Finding a new minimal perturbation with deepfool to fool the network on this image
                 dr, iter_k, label, k_i, pert_image = deepfool.deepfool(
@@ -131,47 +113,61 @@ def generate(
 
                 # Adding the new perturbation found and projecting the perturbation v and data point xi on p.
                 if iter_k < max_iter_df - 1:
-                    v[:, :] += dr[0, 0, :, :]
-
+                    # Ensure to maintain the shape of v
+                    v += dr[0, 0, :, :][None, None, :, :]  # Add dimensions to dr
                     v = project_perturbation(xi, p, v)
 
-        iter = iter + 1
+        iter += 1
 
-        # Reshaping v to the desired shape
-        v = v.reshape((v.shape[0], -1, 1))
+        # v_tensor is created as a 3D tensor already
+        v_tensor = torch.tensor(v, dtype=torch.float32).to(
+            device
+        )  # Shape (1, 1, 28, 28)
 
         with torch.no_grad():
             # Compute fooling_rate
-            labels_original_images = torch.tensor(np.zeros(0, dtype=np.int64))
-            labels_pertubed_images = torch.tensor(np.zeros(0, dtype=np.int64))
-
+            labels_original_images = []
+            labels_perturbed_images = []
             i = 0
+
             # Finding labels for original images
-            for batch_index, (inputs, _) in enumerate(testset):
-                i += inputs.shape[0]
+            for inputs, _ in testset:
+                i += inputs.size(0)
                 inputs = inputs.to(device)
                 outputs = net(inputs)
                 _, predicted = outputs.max(1)
-                labels_original_images = torch.cat(
-                    (labels_original_images, predicted.cpu())
-                )
-            torch.cuda.empty_cache()
+                labels_original_images.append(
+                    predicted
+                )  # Collect predictions directly as tensors
+
+            # Concatenate all predictions for original images
+            labels_original_images = torch.cat(labels_original_images).to(
+                device
+            )  # Ensure on the same device
+
             correct = 0
+
             # Finding labels for perturbed images
-            for batch_index, (inputs, labels) in enumerate(testset):
+            for inputs, labels in testset:
                 inputs = inputs.to(device)
-                inputs += transformer(v).float()
-                outputs = net(inputs)
+                perturbed_inputs = (
+                    inputs + v_tensor.float()
+                )  # Use the tensor for the perturbation
+                outputs = net(perturbed_inputs)
                 _, predicted = outputs.max(1)
-                labels_pertubed_images = torch.cat(
-                    (labels_pertubed_images, predicted.cpu())
-                )
-                correct += (predicted == labels).sum().item()
-            torch.cuda.empty_cache()
+                labels_perturbed_images.append(
+                    predicted
+                )  # Collect predictions directly as tensors
+                correct += (predicted == labels.to(device)).sum().item()
+
+            # Concatenate all predictions for perturbed images
+            labels_perturbed_images = torch.cat(labels_perturbed_images).to(
+                device
+            )  # Ensure on the same device
 
             # Calculating the fooling rate by dividing the number of fooled images by the total number of images
             fooling_rate = float(
-                torch.sum(labels_original_images != labels_pertubed_images)
+                torch.sum(labels_original_images != labels_perturbed_images)
             ) / float(i)
 
             print()
@@ -179,4 +175,5 @@ def generate(
             fooling_rates.append(fooling_rate)
             accuracies.append(correct / i)
             total_iterations.append(iter)
+
     return v, fooling_rates, accuracies, total_iterations
