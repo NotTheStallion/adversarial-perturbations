@@ -163,3 +163,5 @@ cython_debug/
 
 fashion_mnist
 cifar10
+
+datasets/demo_universal/*
