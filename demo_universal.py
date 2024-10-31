@@ -58,7 +58,7 @@ if __name__ == "__main__":
             path_test_image = arg
 
     # Download Inception model if not already present
-    model_path = os.path.join("datasets", "demo_universal", "inception_v3.pth")
+    model_path = os.path.join("data", "demo_universal", "inception_v3.pth")
     if not os.path.isfile(model_path):
         print("Downloading Inception model...")
         urlretrieve(
@@ -80,7 +80,7 @@ if __name__ == "__main__":
             output = model(image_inp)
         return output.cpu().numpy()
 
-    file_perturbation = os.path.join("data", "universal.npy")
+    file_perturbation = os.path.join("data", "demo_universal", "universal.npy")
 
     if not os.path.isfile(file_perturbation):
         print(
@@ -94,7 +94,7 @@ if __name__ == "__main__":
             return jacobian(output, image_inp, indices).cpu().numpy()
 
         # Load/Create data
-        datafile = os.path.join("data", "imagenet_data.npy")
+        datafile = os.path.join("data", "demo_universal", "imagenet_data.npy")
         if not os.path.isfile(datafile):
             print(">> Creating pre-processed imagenet data...")
             X = create_imagenet_npy(path_train_imagenet)
@@ -121,7 +121,7 @@ if __name__ == "__main__":
     print(">> Testing the universal perturbation on an image")
 
     # Test the perturbation on the image
-    with open(os.path.join("data", "labels.txt"), "r") as f:
+    with open(os.path.join("data", "demo_universal", "labels.txt"), "r") as f:
         labels = f.read().split("\n")
 
     image_original = preprocess_image_batch(

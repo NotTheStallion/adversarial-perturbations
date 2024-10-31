@@ -28,7 +28,7 @@ def make_examples():
 
     for i in range(1, 6):
         # Load image
-        im_orig = Image.open(f"datasets/demo_deepfool/test_img{i}.jpg")
+        im_orig = Image.open(f"data/demo_deepfool/test_img{i}.jpg")
         original_images.append(im_orig)
 
         # Mean and std used for normalization (ImageNet stats)
@@ -50,7 +50,7 @@ def make_examples():
 
         # Load class labels from file
         labels = (
-            open(os.path.join("datasets/demo_deepfool/synset_words.txt"), "r")
+            open(os.path.join("data/demo_deepfool/synset_words.txt"), "r")
             .read()
             .split("\n")
         )
