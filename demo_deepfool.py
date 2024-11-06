@@ -25,11 +25,11 @@ def make_examples():
     original_labels = []
     perturbed_images = []
     perturbed_labels = []
+    perturbation = []
 
     for i in range(1, 6):
         # Load image
         im_orig = Image.open(f"data/demo_deepfool/test_img{i}.jpg")
-        original_images.append(im_orig)
 
         # Mean and std used for normalization (ImageNet stats)
         mean = [0.485, 0.456, 0.406]
@@ -44,9 +44,11 @@ def make_examples():
                 transforms.Normalize(mean=mean, std=std),
             ]
         )(im_orig)
-
+        
         # Run DeepFool attack
         r, loop_i, label_orig, label_pert, pert_image = deepfool(im, net)
+        
+        perturbation.append(r[0]) # perturbation is returned as a tensor of size (1, image_size)
 
         # Load class labels from file
         labels = (
@@ -88,23 +90,27 @@ def make_examples():
         pert_image = (
             pert_image.cpu().view(pert_image.size()[-3:]).type(torch.FloatTensor)
         )
+        
+        original_images.append(tf(im))
         perturbed_images.append(tf(pert_image))
+    return original_images, original_labels, perturbed_images, perturbed_labels, perturbation
 
-    return original_images, original_labels, perturbed_images, perturbed_labels
 
+original_images, original_labels, perturbed_images, perturbed_labels, perturbation = make_examples()
 
-original_images, original_labels, perturbed_images, perturbed_labels = make_examples()
-
-fig, ax = plt.subplots(2, 5, figsize=(12, 8))
+fig, ax = plt.subplots(3, 5, figsize=(12, 8))
 for col in range(5):
     ax[0][col].imshow(original_images[col])
-    ax[0][col].set_title(f"Original: {original_labels[col]}")
+    ax[0][col].set_title(f"Original image: {original_labels[col]}")
     ax[0][col].axis("off")
-
-for col in range(5):
-    ax[1][col].imshow(perturbed_images[col])
-    ax[1][col].set_title(f"Perturberd: {perturbed_labels[col]}")
+    
+    ax[1][col].imshow(perturbation[col].transpose(2, 1, 0) * 255)
+    ax[1][col].set_title(f"Perturbation added")
     ax[1][col].axis("off")
+
+    ax[2][col].imshow(perturbed_images[col])
+    ax[2][col].set_title(f"Perturbed image: {perturbed_labels[col]}")
+    ax[2][col].axis("off")
 
 fig.suptitle("DeepFool attack on ResNet34")
 plt.tight_layout()
