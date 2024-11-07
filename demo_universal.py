@@ -120,6 +120,8 @@ if __name__ == "__main__":
     print(">> Computing feedforward function...")
 
     def f(image_inp):
+        # Convert to pytorch format
+        image_inp = np.transpose(image_inp, (0, 3, 1, 2))
         with torch.no_grad():
             image_inp = torch.tensor(image_inp).to(device)
             output = model(image_inp)
@@ -153,7 +155,9 @@ if __name__ == "__main__":
             X = np.load(datafile)
 
         # Running universal perturbation
-        v = universal_perturbation(X, f, grad_fs, delta=0.2, num_classes=num_classes)
+        v = universal_perturbation(
+            X, model, grad_fs, delta=0.2, num_classes=num_classes
+        )
 
         # Saving the universal perturbation
         np.save(file_perturbation, v)

@@ -63,12 +63,12 @@ def undo_image_avg(img):
     return img_copy
 
 
-def create_imagenet_npy(path_train_imagenet, len_batch=10000):
+def create_imagenet_npy(path_train_imagenet, len_batch=1000):
     # path_train_imagenet = '/datasets2/ILSVRC2012/train';
 
     sz_img = [224, 224]
     num_channels = 3
-    num_classes = 1000
+    num_classes = 10
 
     im_array = np.zeros([len_batch] + sz_img + [num_channels], dtype=np.float32)
     num_imgs_per_batch = int(len_batch / num_classes)
@@ -80,7 +80,7 @@ def create_imagenet_npy(path_train_imagenet, len_batch=10000):
     dirs = sorted(dirs)
 
     it = 0
-    Matrix = [0 for x in range(1000)]
+    Matrix = [0 for x in range(900)]
 
     for d in dirs:
         for _, _, filename in os.walk(os.path.join(d)):
