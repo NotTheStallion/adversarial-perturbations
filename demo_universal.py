@@ -42,8 +42,8 @@ if __name__ == "__main__":
     argv = sys.argv[1:]
 
     # Default values
-    path_train_imagenet = "/datasets2/ILSVRC2012/train"
-    path_test_image = "data/test_img.png"
+    path_train_imagenet = "data/demo_universal/ILSVRC2012/train"
+    path_test_image = "data/demo_universal/test_img.jpg"
 
     try:
         opts, args = getopt.getopt(argv, "i:t:", ["test_image=", "training_path="])
