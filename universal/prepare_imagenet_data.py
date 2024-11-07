@@ -1,5 +1,6 @@
 import numpy as np
 import os
+from PIL import Image
 import imageio
 
 CLASS_INDEX = None
@@ -10,11 +11,17 @@ def preprocess_image_batch(
     image_paths, img_size=None, crop_size=None, color_mode="rgb", out=None
 ):
     img_list = []
-
     for im_path in image_paths:
-        img = imageio.imread(im_path, mode="RGB")
+        # Read the image as a NumPy array and convert it to a PIL image
+        img = imageio.imread(im_path)
+        img = Image.fromarray(img).convert("RGB")
+
         if img_size:
-            img = imageio.imresize(img, img_size)
+            # Resize the PIL image
+            img = img.resize(img_size)
+
+        # If you need to convert the image back to a NumPy array for further processing:
+        img = np.array(img)
 
         img = img.astype("float32")
         # We normalize the colors (in RGB space) with the empirical means on the training set
@@ -76,7 +83,7 @@ def create_imagenet_npy(path_train_imagenet, len_batch=10000):
     Matrix = [0 for x in range(1000)]
 
     for d in dirs:
-        for _, _, filename in os.walk(os.path.join(path_train_imagenet, d)):
+        for _, _, filename in os.walk(os.path.join(d)):
             Matrix[it] = filename
         it = it + 1
 

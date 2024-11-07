@@ -3,6 +3,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 import os
+import tarfile
+import urllib.request
 import sys
 import getopt
 from torchvision import models, transforms
@@ -37,12 +39,23 @@ def jacobian(y, x, inds):
     return torch.stack(jacobian)
 
 
+def show_dl(block_num, block_size, total_size):
+    taille_recue = block_num * block_size
+    if total_size > 0:
+        pourcentage = min(100, taille_recue * 100 / total_size)
+        sys.stdout.write(f"\rDownload : {pourcentage:.2f}%")
+        sys.stdout.flush()
+    else:
+        sys.stdout.write(f"\rReceived size : {taille_recue / (1024 * 1024):.2f} MB")
+        sys.stdout.flush()
+
+
 if __name__ == "__main__":
     # Parse arguments
     argv = sys.argv[1:]
 
     # Default values
-    path_train_imagenet = "data/demo_universal/ILSVRC2012/train"
+    path_train_imagenet = "data/demo_universal/imagenette2-320/train"
     path_test_image = "data/demo_universal/test_img.jpg"
 
     try:
@@ -64,6 +77,38 @@ if __name__ == "__main__":
         urlretrieve(
             "https://download.pytorch.org/models/inception_v3_google-1a9a5a14.pth",
             model_path,
+            show_dl,
+        )
+
+    # Load dataset
+    # Définir le chemin du dossier et l'URL de l'archive
+    target_folder = "data/demo_universal/imagenette2-320"
+    dataset_url = "https://s3.amazonaws.com/fast-ai-imageclas/imagenette2-320.tgz"
+    archive_path = "data/demo_universal/imagenette2-320.tgz"
+
+    # Vérifier si le dossier existe
+    if not os.path.exists(target_folder):
+        print(f"The folder '{target_folder}' doesn't exist. Dataset downloads...")
+
+        # Créer le dossier parent s'il n'existe pas
+        os.makedirs("data/demo_universal", exist_ok=True)
+
+        # Télécharger l'archive
+        urllib.request.urlretrieve(dataset_url, archive_path, show_dl)
+        print("Téléchargement terminé.")
+
+        # Extraire l'archive
+        print("Extraction de l'archive...")
+        with tarfile.open(archive_path, "r:gz") as tar:
+            tar.extractall(path="data/demo_universal")
+        print("Extraction terminée.")
+
+        # Optionnel : supprimer l'archive après extraction
+        os.remove(archive_path)
+        print("Archive supprimée.")
+    else:
+        print(
+            f"Le dossier '{target_folder}' existe déjà. Aucun téléchargement nécessaire."
         )
 
     # Load the Inception model and set it to evaluation mode
