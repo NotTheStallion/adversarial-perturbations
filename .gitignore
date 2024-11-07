@@ -165,3 +165,4 @@ fashion_mnist
 cifar10
 
 data/demo_universal/*
+cifar-10*
