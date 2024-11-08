@@ -168,6 +168,7 @@ def local_deepfool(
     pert_image = copy.deepcopy(image)
     # Perturbation vector
     w = np.zeros(input_shape)
+    print(f"shape of w: {w.shape}")
     # Accumulated perturbation (within region)
     r_tot = np.zeros(input_shape)
 
@@ -175,6 +176,9 @@ def local_deepfool(
     x = pert_image.unsqueeze(0).requires_grad_(True)
     pred_p = net.forward(x)
     label_pert = label_orig
+    
+    region_mask = np.zeros(input_shape, dtype=np.float32)
+    region_mask[:, x1:x2, y1:y2] = 1
 
     while label_pert == label_orig and iter < max_iter:
         pert = np.inf
@@ -195,21 +199,25 @@ def local_deepfool(
             cur_grad = (
                 x.grad.detach().cpu().numpy().copy()
             )  # Store the gradient of the current class
+            
+            # print(cur_grad.shape)
+            # print(grad_origin.shape)
 
             # w_k is the direction to move in order to change class
             # w_k = cur_grad - grad_origin  # Eq 8 in the paper
-            w_k = grad_origin
-            w_k[:, y1:y2, x1:x2] = (
-                cur_grad[:, y1:y2, x1:x2] - grad_origin[:, y1:y2, x1:x2]
-            )
+            w_k = np.zeros_like(cur_grad)
+
+            w_k[0][:, x1:x2, y1:y2] = cur_grad[0][:, x1:x2, y1:y2] - grad_origin[0][:, x1:x2, y1:y2]
+            
+            # print(cur_grad[0][:, x1:x2, y1:y2])
+            
+            # exit()
 
             # Difference in activation between current class and original class
             f_k = (pred_p[0, I[k]] - pred_p[0, label_orig]).item()  # Eq 8 in the paper
 
             # Formula: perturbation = |f_k| / ||w_k_region|| (L2 norm)
-            pert_k = abs(f_k) / np.linalg.norm(
-                w_k[:, y1:y2, x1:x2].flatten()
-            )  # Eq 8 in the paper
+            pert_k = abs(f_k) / np.linalg.norm(w_k.flatten())  # Eq 8 in the paper
 
             # Update the perturbation if a smaller one is found
             if pert_k < pert:
@@ -219,7 +227,10 @@ def local_deepfool(
         # Update the perturbation within the specified region
         # print(f"shape of w: {w.shape} and pert: {pert}")
         r_i = pert * w / np.linalg.norm(w)
-        r_tot[:, y1:y2, x1:x2] += r_i[0][:, y1:y2, x1:x2]
+        try :
+            r_tot += r_i[0] * region_mask
+        except:
+            r_tot += r_i * region_mask
 
         # Apply perturbation within the region
         pert_image = image + torch.from_numpy(r_tot).to(image.device)
