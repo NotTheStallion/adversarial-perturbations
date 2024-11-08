@@ -56,7 +56,7 @@ def make_examples():
 
         # Run DeepFool attack
         r, loop_i, label_orig, label_pert, pert_image = local_deepfool(
-            im, net, max_iter=1000, region=((50, 50, 80, 80))
+            im, net, max_iter=1000, region=((113, 91, 150, 150))
         )
 
         # Load class labels from file
@@ -109,20 +109,19 @@ difference_images = []
 
 for orig, pert in zip(original_images, perturbed_images):
     # print(type(orig), type(pert))
-    
+
     # Convert images to tensors
-    if isinstance(orig, Image.Image): 
+    if isinstance(orig, Image.Image):
         orig_tensor = transforms.ToTensor()(orig)
-    else :
+    else:
         orig_tensor = orig
-    if isinstance(pert, Image.Image): 
+    if isinstance(pert, Image.Image):
         pert_tensor = transforms.ToTensor()(pert)
     else:
         pert_tensor = pert
-    
-    
+
     # print(type(orig_tensor), type(pert_tensor))
-    
+
     # Calculate the difference
     diff_tensor = torch.abs(orig_tensor - pert_tensor)
 
