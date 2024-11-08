@@ -29,7 +29,7 @@ def deepfool(image, net, num_classes=10, overshoot=0.02, max_iter=50):
         print("Using CPU")
 
     # Getting probability vector
-    f_image = net.forward(image.requires_grad_(True)).detach().cpu().numpy().flatten()
+    f_image = net.forward(image.unsqueeze(0).requires_grad_(True)).detach().cpu().numpy().flatten()
     # Getting top num_classes predictions
     I = np.argsort(f_image)[::-1][:num_classes]
 
@@ -45,7 +45,7 @@ def deepfool(image, net, num_classes=10, overshoot=0.02, max_iter=50):
 
     iter = 0
 
-    x = pert_image.requires_grad_(
+    x = pert_image.unsqueeze(0).requires_grad_(
         True
     )  # Add batch dimension and enable gradient calculation
     # print(f"Input shape: {x.shape}")
