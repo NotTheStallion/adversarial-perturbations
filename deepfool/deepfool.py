@@ -22,14 +22,17 @@ def deepfool(image, net, num_classes=10, overshoot=0.02, max_iter=50):
     is_cuda = torch.cuda.is_available()
 
     if is_cuda:
-        print("Using GPU")
         image = image.cuda()
         net = net.cuda()
-    else:
-        print("Using CPU")
 
     # Getting probability vector
-    f_image = net.forward(image.unsqueeze(0).requires_grad_(True)).detach().cpu().numpy().flatten()
+    f_image = (
+        net.forward(image.unsqueeze(0).requires_grad_(True))
+        .detach()
+        .cpu()
+        .numpy()
+        .flatten()
+    )
     # Getting top num_classes predictions
     I = np.argsort(f_image)[::-1][:num_classes]
 
@@ -139,11 +142,8 @@ def local_deepfool(
 
     is_cuda = torch.cuda.is_available()
     if is_cuda:
-        print("Using GPU")
         image = image.cuda()
         net = net.cuda()
-    else:
-        print("Using CPU")
 
     # Define subimage region if not specified (use entire image)
     if region is None:
