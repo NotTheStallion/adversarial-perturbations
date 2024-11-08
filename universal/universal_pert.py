@@ -20,7 +20,7 @@ def proj_lp(v, xi, p):
 
 
 # Convertir un tensor en PIL image avant d'appliquer Resize
-def resize_tensor(img_tensor, size=299):
+def resize_tensor(img_tensor, size):
     to_pil = ToPILImage()
     img_pil = to_pil(img_tensor)
     resize_transform = transforms.Resize(size)
@@ -33,6 +33,7 @@ def resize_tensor(img_tensor, size=299):
 def universal_perturbation(
     dataloader,
     f,
+    v_size,
     device,
     delta=0.2,
     max_iter_uni=np.inf,
@@ -44,14 +45,6 @@ def universal_perturbation(
 ):
     # Set model to evaluation mode
     f.eval()
-
-    # Resize transform to ensure images are the correct size
-    transform_resize = transforms.Compose(
-        [
-            transforms.Resize(299),  # Resize images to 299x299 for Inception model
-            transforms.ToTensor(),
-        ]
-    )
 
     v = torch.zeros_like(next(iter(dataloader))[0][0]).to(device)
     fooling_rate = 0.0
@@ -68,13 +61,13 @@ def universal_perturbation(
 
             for img in images:
                 # Apply the resize transformation before passing to the model
-                img_resized = resize_tensor(img, 299).to(device)
+                img_resized = resize_tensor(img, v_size).to(device)
 
                 img_resized = img_resized.unsqueeze(0)
 
                 v = F.interpolate(
                     v.unsqueeze(0),
-                    size=(299, 299),
+                    size=(v_size, v_size),
                     mode="bilinear",
                     align_corners=False,
                 ).squeeze(0)
@@ -108,7 +101,10 @@ def universal_perturbation(
             for images, _ in dataloader:
                 images = (
                     F.interpolate(
-                        images, size=(299, 299), mode="bilinear", align_corners=False
+                        images,
+                        size=(v_size, v_size),
+                        mode="bilinear",
+                        align_corners=False,
                     )
                     .squeeze(0)
                     .to(device)

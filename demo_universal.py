@@ -27,9 +27,9 @@ train_set = torchvision.datasets.STL10(
     transform=transform,
 )
 
-# Limiter à 100 images par classe
+"""# Limiter à 100 images par classe
 class_counts = defaultdict(int)
-max_per_class = 100
+max_per_class = 10
 filtered_indices = []
 
 for idx, (_, label) in enumerate(train_set):
@@ -38,12 +38,12 @@ for idx, (_, label) in enumerate(train_set):
         class_counts[label] += 1
 
 # Création du sous-ensemble personnalisé
-train_subset = torch.utils.data.Subset(train_set, filtered_indices)
+train_subset = torch.utils.data.Subset(train_set, filtered_indices)"""
 
 # Création du DataLoader avec le sous-ensemble
 train_loader = torch.utils.data.DataLoader(
-    train_subset,
-    batch_size=4,
+    train_set,
+    batch_size=10,
     shuffle=True,
     num_workers=2,
 )
@@ -112,11 +112,11 @@ def load_image(image_path, size=(96, 96)):
 
 # Génération de la perturbation universelle
 v = universal_perturbation(
-    train_loader, model, device, delta=0.95, num_classes=len(classes)
+    train_loader, model, v_size=96, device=device, delta=0.95, num_classes=len(classes)
 )
 
 # Charger et tester une image
-test_img = load_image("data/demo_universal/test_img.png").to(device)
+test_img = load_image("data/demo_universal/test_img.jpg").to(device)
 
 test_img_label = classes[int(torch.argmax(model(test_img)).item())]
 
