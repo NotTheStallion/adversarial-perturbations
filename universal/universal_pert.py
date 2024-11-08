@@ -60,7 +60,10 @@ def universal_perturbation(
     while fooling_rate < 1 - delta and itr_count < max_iter_uni:
         print("Starting pass number ", itr_count)
 
-        for images, _ in dataloader:
+        for batch_idx, (images, _) in enumerate(dataloader):
+            print(
+                f"Processing batch {batch_idx + 1} on {len(dataloader)} (batch size: {len(images)})"
+            )
             images = images.to(device)
 
             for img in images:
@@ -81,8 +84,6 @@ def universal_perturbation(
                 if int(torch.argmax(f(img_resized)).item()) == int(
                     torch.argmax(f(img_resized + v)).item()
                 ):
-                    print(">> Processing image...")
-
                     perturbation, num_iterations, *_ = local_deepfool(
                         (img_resized + v).squeeze(0),
                         f,
