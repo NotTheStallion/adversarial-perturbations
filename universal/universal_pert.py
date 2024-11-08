@@ -1,7 +1,7 @@
 import torch
 from torch.utils.data import DataLoader, Dataset
 import numpy as np
-from .deepfool_universal import deepfool
+from deepfool.deepfool import deepfool, local_deepfool
 from torchvision import transforms
 from torchvision.transforms import ToPILImage, ToTensor
 import torch.nn.functional as F
@@ -78,23 +78,24 @@ def universal_perturbation(
 
                 v = v.to(device)
 
-                with torch.no_grad():  # Disable gradient tracking
-                    if int(torch.argmax(f(img_resized)).item()) == int(
-                        torch.argmax(f(img_resized + v)).item()
-                    ):
-                        print(">> Processing image...")
+                if int(torch.argmax(f(img_resized)).item()) == int(
+                    torch.argmax(f(img_resized + v)).item()
+                ):
+                    print(">> Processing image...")
 
-                        perturbation, num_iterations, _, _ = deepfool(
-                            img_resized + v,
-                            f,
-                            num_classes=num_classes,
-                            overshoot=overshoot,
-                            max_iter=max_iter_df,
-                        )
+                    perturbation, num_iterations, *_ = local_deepfool(
+                        (img_resized + v).squeeze(0),
+                        f,
+                        num_classes=num_classes,
+                        overshoot=overshoot,
+                        max_iter=max_iter_df,
+                    )
 
-                        if num_iterations < max_iter_df - 1:
-                            v = v + perturbation
-                            v = proj_lp(v, xi, p)
+                    perturbation = torch.from_numpy(perturbation).to(device).float()
+
+                    if num_iterations < max_iter_df - 1:
+                        v = v + perturbation
+                        v = proj_lp(v, xi, p)
 
         itr_count += 1
 

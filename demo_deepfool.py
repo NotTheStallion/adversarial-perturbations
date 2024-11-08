@@ -34,14 +34,15 @@ def make_examples():
         mean = [0.485, 0.456, 0.406]
         std = [0.229, 0.224, 0.225]
 
-
-        original_images.append(transforms.Compose(
-            [
-                transforms.Resize(256),  # Updated from transforms.Scale
-                transforms.CenterCrop(224),
-                transforms.ToTensor()
-            ]
-        )(im_orig))
+        original_images.append(
+            transforms.Compose(
+                [
+                    transforms.Resize(256),  # Updated from transforms.Scale
+                    transforms.CenterCrop(224),
+                    transforms.ToTensor(),
+                ]
+            )(im_orig)
+        )
 
         # Preprocessing the image: resize, crop, convert to tensor, and normalize
         im = transforms.Compose(
@@ -54,7 +55,9 @@ def make_examples():
         )(im_orig)
 
         # Run DeepFool attack
-        r, loop_i, label_orig, label_pert, pert_image = local_deepfool(im, net, max_iter=1000, region=(0, 0, 100, 100))
+        r, loop_i, label_orig, label_pert, pert_image = local_deepfool(
+            im, net, max_iter=1000, region=(0, 0, 100, 100)
+        )
 
         # Load class labels from file
         labels = (
@@ -109,10 +112,10 @@ for orig, pert in zip(original_images, perturbed_images):
     # Convert images to tensors
     orig_tensor = orig
     pert_tensor = transforms.ToTensor()(pert)
-    
+
     # Calculate the difference
     diff_tensor = torch.abs(orig_tensor - pert_tensor)
-    
+
     # Convert the difference tensor back to a PIL image
     diff_image = transforms.ToPILImage()(diff_tensor)
     difference_images.append(diff_image)
@@ -124,8 +127,8 @@ fig_diff, ax_diff = plt.subplots(1, 5, figsize=(12, 4))
 for col in range(5):
     # Rescale the difference image to the range [0, 1] for better visualization
     diff = transforms.ToTensor()(difference_images[col])
-    diff_rescaled = transforms.ToPILImage()(diff/diff.max())
-    ax_diff[col].imshow(diff_rescaled, cmap='gray')
+    diff_rescaled = transforms.ToPILImage()(diff / diff.max())
+    ax_diff[col].imshow(diff_rescaled, cmap="gray")
     ax_diff[col].set_title(f"Difference {col+1}")
     ax_diff[col].axis("off")
 
