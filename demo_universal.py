@@ -7,6 +7,7 @@ from universal.universal_pert import universal_perturbation
 import torchvision.models as models
 import torch.nn as nn
 import torch.optim as optim
+from collections import defaultdict
 
 transform = transforms.Compose(
     [
@@ -23,8 +24,23 @@ train_set = torchvision.datasets.CIFAR10(
     transform=transform,
 )
 
+# Limiter à 100 images par classe
+class_counts = defaultdict(int)
+max_per_class = 10
+filtered_indices = []
+
+# Parcours du dataset pour sélectionner les indices
+for idx, (_, label) in enumerate(train_set):
+    if class_counts[label] < max_per_class:
+        filtered_indices.append(idx)
+        class_counts[label] += 1
+
+# Création du sous-ensemble personnalisé
+train_subset = torch.utils.data.Subset(train_set, filtered_indices)
+
+# Création du DataLoader avec le sous-ensemble
 train_loader = torch.utils.data.DataLoader(
-    train_set,
+    train_subset,
     batch_size=4,
     shuffle=True,
     num_workers=2,
@@ -86,5 +102,5 @@ imshow(torchvision.utils.make_grid(images))
 print(" ".join(f"{classes[labels[j]]}" for j in range(4)))"""
 
 v = universal_perturbation(
-    test_loader, model, device, delta=0.2, num_classes=len(classes)
+    train_loader, model, device, delta=0.2, num_classes=len(classes)
 )
