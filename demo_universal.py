@@ -8,6 +8,7 @@ import torchvision.models as models
 import torch.nn as nn
 import torch.optim as optim
 from collections import defaultdict
+from PIL import Image
 
 transform = transforms.Compose(
     [
@@ -82,25 +83,48 @@ model.fc = nn.Linear(model.fc.in_features, 10)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model = model.to(device)
 
-"""
-# Exemple de visualisation d'un batch de données
 
 def imshow(img):
-    img = img / 2 + 0.5  # Dénormalise l'image
-    npimg = img.numpy()
-    plt.imshow(np.transpose(npimg, (1, 2, 0)))
-    plt.show()
+    # Denormalize the image to [0, 1] range
+    img = img / 2 + 0.5  # Assuming the image was normalized in the range [-1, 1]
+
+    # Convert to numpy array and transpose to (H, W, C)
+    npimg = img.cpu().numpy()
+    npimg = np.transpose(npimg, (1, 2, 0))  # Convert from (C, H, W) to (H, W, C)
+
+    plt.imshow(npimg)
+    plt.axis("off")
 
 
-# Obtenir un batch d'images
-dataiter = iter(trainloader)
-images, labels = next(dataiter)
+def load_image(image_path, size=(299, 299)):
+    transform = transforms.Compose(
+        [
+            transforms.Resize(size),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+        ]
+    )
+    image = Image.open(image_path)
+    return transform(image).unsqueeze(0)
 
-# Afficher les images
-imshow(torchvision.utils.make_grid(images))
-# Afficher les labels
-print(" ".join(f"{classes[labels[j]]}" for j in range(4)))"""
 
 v = universal_perturbation(
-    train_loader, model, device, delta=0.2, num_classes=len(classes)
+    train_loader, model, device, delta=0.95, num_classes=len(classes)
 )
+
+test_img = load_image("data/demo_universal/test_img.jpg").to(device)
+
+perturbed_test_img = test_img + v
+
+plt.figure(figsize=(15, 5))
+
+plt.subplot(1, 3, 1)
+imshow(test_img.squeeze())
+
+plt.subplot(1, 3, 2)
+imshow(perturbed_test_img.squeeze())
+
+plt.subplot(1, 3, 3)
+imshow(v.squeeze())
+
+plt.show()

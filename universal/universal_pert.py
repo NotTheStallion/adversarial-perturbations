@@ -106,18 +106,18 @@ def universal_perturbation(
 
         with torch.no_grad():
             for images, _ in dataloader:
-                images = images.to(device)
+                images = (
+                    F.interpolate(
+                        images, size=(299, 299), mode="bilinear", align_corners=False
+                    )
+                    .squeeze(0)
+                    .to(device)
+                )
                 perturbed_images = images + v
 
-                # Resize the images again before inference
-                images_resized = transform_resize(images)
-                perturbed_images_resized = transform_resize(perturbed_images)
-
-                est_labels_orig.extend(
-                    torch.argmax(f(images_resized), dim=1).cpu().numpy()
-                )
+                est_labels_orig.extend(torch.argmax(f(images), dim=1).cpu().numpy())
                 est_labels_pert.extend(
-                    torch.argmax(f(perturbed_images_resized), dim=1).cpu().numpy()
+                    torch.argmax(f(perturbed_images), dim=1).cpu().numpy()
                 )
 
         fooling_rate = np.mean(np.array(est_labels_orig) != np.array(est_labels_pert))

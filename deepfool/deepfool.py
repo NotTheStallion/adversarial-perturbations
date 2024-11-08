@@ -168,7 +168,6 @@ def local_deepfool(
     pert_image = copy.deepcopy(image)
     # Perturbation vector
     w = np.zeros(input_shape)
-    print(f"shape of w: {w.shape}")
     # Accumulated perturbation (within region)
     r_tot = np.zeros(input_shape)
 
@@ -176,7 +175,7 @@ def local_deepfool(
     x = pert_image.unsqueeze(0).requires_grad_(True)
     pred_p = net.forward(x)
     label_pert = label_orig
-    
+
     region_mask = np.zeros(input_shape, dtype=np.float32)
     region_mask[:, x1:x2, y1:y2] = 1
 
@@ -199,7 +198,7 @@ def local_deepfool(
             cur_grad = (
                 x.grad.detach().cpu().numpy().copy()
             )  # Store the gradient of the current class
-            
+
             # print(cur_grad.shape)
             # print(grad_origin.shape)
 
@@ -207,10 +206,12 @@ def local_deepfool(
             # w_k = cur_grad - grad_origin  # Eq 8 in the paper
             w_k = np.zeros_like(cur_grad)
 
-            w_k[0][:, x1:x2, y1:y2] = cur_grad[0][:, x1:x2, y1:y2] - grad_origin[0][:, x1:x2, y1:y2]
-            
+            w_k[0][:, x1:x2, y1:y2] = (
+                cur_grad[0][:, x1:x2, y1:y2] - grad_origin[0][:, x1:x2, y1:y2]
+            )
+
             # print(cur_grad[0][:, x1:x2, y1:y2])
-            
+
             # exit()
 
             # Difference in activation between current class and original class
@@ -227,7 +228,7 @@ def local_deepfool(
         # Update the perturbation within the specified region
         # print(f"shape of w: {w.shape} and pert: {pert}")
         r_i = pert * w / np.linalg.norm(w)
-        try :
+        try:
             r_tot += r_i[0] * region_mask
         except:
             r_tot += r_i * region_mask
