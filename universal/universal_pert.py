@@ -1,7 +1,7 @@
 import torch
 from torch.utils.data import DataLoader, Dataset
 import numpy as np
-from deepfool.deepfool import deepfool
+from .deepfool_universal import deepfool
 from torchvision import transforms
 from torchvision.transforms import ToPILImage, ToTensor
 import torch.nn.functional as F
