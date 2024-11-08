@@ -26,7 +26,7 @@ train_set = torchvision.datasets.CIFAR10(
 
 # Limiter à 100 images par classe
 class_counts = defaultdict(int)
-max_per_class = 10
+max_per_class = 100
 filtered_indices = []
 
 # Parcours du dataset pour sélectionner les indices
