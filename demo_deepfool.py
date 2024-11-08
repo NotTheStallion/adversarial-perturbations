@@ -148,11 +148,11 @@ difference_images = []
 
 for orig, pert in zip(original_images, perturbed_images):
     # Convert images to tensors
-    if isinstance(orig, Image.Image): 
+    if isinstance(orig, Image.Image):
         orig_tensor = transforms.ToTensor()(orig)
-    else :
+    else:
         orig_tensor = orig
-    if isinstance(pert, Image.Image): 
+    if isinstance(pert, Image.Image):
         pert_tensor = transforms.ToTensor()(pert)
     else:
         pert_tensor = pert
