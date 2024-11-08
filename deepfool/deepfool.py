@@ -2,8 +2,6 @@
 This module contains the implementation of the DeepFool algorithm for generating adversarial perturbations.
 """
 
-
-
 import numpy as np
 import torch
 import copy
@@ -31,13 +29,7 @@ def deepfool(image, net, num_classes=10, overshoot=0.02, max_iter=50):
         print("Using CPU")
 
     # Getting probability vector
-    f_image = (
-        net.forward(image.unsqueeze(0).requires_grad_(True))
-        .detach()
-        .cpu()
-        .numpy()
-        .flatten()
-    )
+    f_image = net.forward(image.unsqueeze(0).requires_grad_(True)).detach().cpu().numpy().flatten()
     # Getting top num_classes predictions
     I = np.argsort(f_image)[::-1][:num_classes]
 
@@ -130,8 +122,9 @@ def deepfool(image, net, num_classes=10, overshoot=0.02, max_iter=50):
     )  # Return the total perturbation, iteration count, original and new labels, and perturbed image
 
 
-
-def local_deepfool(image, net, num_classes=10, overshoot=0.02, max_iter=50, region=None):
+def local_deepfool(
+    image, net, num_classes=10, overshoot=0.02, max_iter=50, region=None
+):
     """
     DeepFool algorithm for adversarial attacks on a subimage.
 
@@ -206,17 +199,25 @@ def local_deepfool(image, net, num_classes=10, overshoot=0.02, max_iter=50, regi
             cur_grad = (
                 x.grad.detach().cpu().numpy().copy()
             )  # Store the gradient of the current class
+            
+            # print(cur_grad.shape)
+            # print(grad_origin.shape)
 
             # w_k is the direction to move in order to change class
             # w_k = cur_grad - grad_origin  # Eq 8 in the paper
             w_k = np.zeros_like(cur_grad)
-            w_k[:, x1:x2, y1:y2] = cur_grad[:, x1:x2, y1:y2] - grad_origin[:, x1:x2, y1:y2]
+
+            w_k[0][:, x1:x2, y1:y2] = cur_grad[0][:, x1:x2, y1:y2] - grad_origin[0][:, x1:x2, y1:y2]
+            
+            # print(cur_grad[0][:, x1:x2, y1:y2])
+            
+            # exit()
 
             # Difference in activation between current class and original class
             f_k = (pred_p[0, I[k]] - pred_p[0, label_orig]).item()  # Eq 8 in the paper
 
             # Formula: perturbation = |f_k| / ||w_k_region|| (L2 norm)
-            pert_k = abs(f_k) / np.linalg.norm(w_k[:, x1:x2, y1:y2].flatten())  # Eq 8 in the paper
+            pert_k = abs(f_k) / np.linalg.norm(w_k.flatten())  # Eq 8 in the paper
 
             # Update the perturbation if a smaller one is found
             if pert_k < pert:
@@ -233,10 +234,12 @@ def local_deepfool(image, net, num_classes=10, overshoot=0.02, max_iter=50, regi
 
         # Apply perturbation within the region
         pert_image = image + torch.from_numpy(r_tot).to(image.device)
-        
+
         # Forward pass with perturbed image
         x = pert_image.unsqueeze(0).requires_grad_(True)
-        input = x.view(x.size()[-4:]).type(torch.cuda.FloatTensor if is_cuda else torch.FloatTensor)
+        input = x.view(x.size()[-4:]).type(
+            torch.cuda.FloatTensor if is_cuda else torch.FloatTensor
+        )
 
         pred_p = net.forward(input)
         label_pert = np.argmax(pred_p.detach().cpu().numpy().flatten())

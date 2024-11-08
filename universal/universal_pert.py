@@ -1,123 +1,124 @@
+import torch
+from torch.utils.data import DataLoader, Dataset
 import numpy as np
-from deepfool.deepfool import deepfool
+from .deepfool_universal import deepfool
+from torchvision import transforms
+from torchvision.transforms import ToPILImage, ToTensor
+import torch.nn.functional as F
 
 
 def proj_lp(v, xi, p):
-    # Project on the lp ball centered at 0 and of radius xi
-
-    # SUPPORTS only p = 2 and p = Inf for now
     if p == 2:
-        v = v * min(1, xi / np.linalg.norm(v.flatten(1)))
-        # v = v / np.linalg.norm(v.flatten(1)) * xi
-    elif p == np.inf:
-        v = np.sign(v) * np.minimum(abs(v), xi)
+        v = v * min(1, xi / torch.norm(v.flatten(1)))
+    elif p == float("inf"):
+        v = torch.sign(v) * torch.minimum(v.abs(), torch.tensor(xi, device=v.device))
     else:
         raise ValueError(
             "Values of p different from 2 and Inf are currently not supported..."
         )
-
     return v
 
 
+# Convertir un tensor en PIL image avant d'appliquer Resize
+def resize_tensor(img_tensor, size=299):
+    to_pil = ToPILImage()
+    img_pil = to_pil(img_tensor)
+    resize_transform = transforms.Resize(size)
+    img_resized = resize_transform(img_pil)
+    to_tensor = ToTensor()
+    img_resized_tensor = to_tensor(img_resized)
+    return img_resized_tensor
+
+
 def universal_perturbation(
-    dataset,
+    dataloader,
     f,
-    grads,
+    device,
     delta=0.2,
     max_iter_uni=np.inf,
     xi=10,
-    p=np.inf,
+    p=float("inf"),
     num_classes=10,
     overshoot=0.02,
     max_iter_df=10,
 ):
-    """
-    :param dataset: Images of size MxHxWxC (M: number of images)
+    # Set model to evaluation mode
+    f.eval()
 
-    :param f: feedforward function (input: images, output: values of activation BEFORE softmax).
+    # Resize transform to ensure images are the correct size
+    transform_resize = transforms.Compose(
+        [
+            transforms.Resize(299),  # Resize images to 299x299 for Inception model
+            transforms.ToTensor(),
+        ]
+    )
 
-    :param grads: gradient functions with respect to input (as many gradients as classes).
-
-    :param delta: controls the desired fooling rate (default = 80% fooling rate)
-
-    :param max_iter_uni: optional other termination criterion (maximum number of iteration, default = np.inf)
-
-    :param xi: controls the l_p magnitude of the perturbation (default = 10)
-
-    :param p: norm to be used (FOR NOW, ONLY p = 2, and p = np.inf ARE ACCEPTED!) (default = np.inf)
-
-    :param num_classes: num_classes (limits the number of classes to test against, by default = 10)
-
-    :param overshoot: used as a termination criterion to prevent vanishing updates (default = 0.02).
-
-    :param max_iter_df: maximum number of iterations for deepfool (default = 10)
-
-    :return: the universal perturbation.
-    """
-
-    v = 0
+    v = torch.zeros_like(next(iter(dataloader))[0][0]).to(device)
     fooling_rate = 0.0
-    num_images = np.shape(dataset)[
-        0
-    ]  # The images should be stacked ALONG FIRST DIMENSION
+    itr_count = 0
 
-    itr = 0
-    while fooling_rate < 1 - delta and itr < max_iter_uni:
-        # Shuffle the dataset
-        np.random.shuffle(dataset)
+    while fooling_rate < 1 - delta and itr_count < max_iter_uni:
+        print("Starting pass number ", itr_count)
 
-        print("Starting pass number ", itr)
+        for images, _ in dataloader:
+            images = images.to(device)
 
-        # Go through the data set and compute the perturbation increments sequentially
-        for k in range(0, num_images):
-            cur_img = dataset[k : (k + 1), :, :, :]
+            for img in images:
+                # Apply the resize transformation before passing to the model
+                img_resized = resize_tensor(img, 299).to(device)
 
-            if int(np.argmax(np.array(f(cur_img)).flatten())) == int(
-                np.argmax(np.array(f(cur_img + v)).flatten())
-            ):
-                print(">> k = ", k, ", pass #", itr)
+                img_resized = img_resized.unsqueeze(0)
 
-                # Compute adversarial perturbation
-                dr, iter, _, _ = deepfool(
-                    cur_img + v,
-                    f,
-                    grads,
-                    num_classes=num_classes,
-                    overshoot=overshoot,
-                    max_iter=max_iter_df,
-                )
+                v = F.interpolate(
+                    v.unsqueeze(0),
+                    size=(299, 299),
+                    mode="bilinear",
+                    align_corners=False,
+                ).squeeze(0)
 
-                # Make sure it converged...
-                if iter < max_iter_df - 1:
-                    v = v + dr
+                v = v.to(device)
 
-                    # Project on l_p ball
-                    v = proj_lp(v, xi, p)
+                with torch.no_grad():  # Disable gradient tracking
+                    if int(torch.argmax(f(img_resized)).item()) == int(
+                        torch.argmax(f(img_resized + v)).item()
+                    ):
+                        print(">> Processing image...")
 
-        itr = itr + 1
+                        perturbation, num_iterations, _, _ = deepfool(
+                            img_resized + v,
+                            f,
+                            num_classes=num_classes,
+                            overshoot=overshoot,
+                            max_iter=max_iter_df,
+                        )
 
-        # Perturb the dataset with computed perturbation
-        dataset_perturbed = dataset + v
+                        if num_iterations < max_iter_df - 1:
+                            v = v + perturbation
+                            v = proj_lp(v, xi, p)
 
-        est_labels_orig = np.zeros((num_images))
-        est_labels_pert = np.zeros((num_images))
-
-        batch_size = 100
-        num_batches = np.int(np.ceil(np.float(num_images) / np.float(batch_size)))
-
-        # Compute the estimated labels in batches
-        for ii in range(0, num_batches):
-            m = ii * batch_size
-            M = min((ii + 1) * batch_size, num_images)
-            est_labels_orig[m:M] = np.argmax(f(dataset[m:M, :, :, :]), axis=1).flatten()
-            est_labels_pert[m:M] = np.argmax(
-                f(dataset_perturbed[m:M, :, :, :]), axis=1
-            ).flatten()
+        itr_count += 1
 
         # Compute the fooling rate
-        fooling_rate = float(
-            np.sum(est_labels_pert != est_labels_orig) / float(num_images)
-        )
+        est_labels_orig = []
+        est_labels_pert = []
+
+        with torch.no_grad():
+            for images, _ in dataloader:
+                images = images.to(device)
+                perturbed_images = images + v
+
+                # Resize the images again before inference
+                images_resized = transform_resize(images)
+                perturbed_images_resized = transform_resize(perturbed_images)
+
+                est_labels_orig.extend(
+                    torch.argmax(f(images_resized), dim=1).cpu().numpy()
+                )
+                est_labels_pert.extend(
+                    torch.argmax(f(perturbed_images_resized), dim=1).cpu().numpy()
+                )
+
+        fooling_rate = np.mean(np.array(est_labels_orig) != np.array(est_labels_pert))
         print("FOOLING RATE = ", fooling_rate)
 
     return v

@@ -25,7 +25,6 @@ def make_examples():
     original_labels = []
     perturbed_images = []
     perturbed_labels = []
-    perturbation = []
 
     for i in range(1, 6):
         # Load image
@@ -53,9 +52,9 @@ def make_examples():
                 transforms.Normalize(mean=mean, std=std),
             ]
         )(im_orig)
-        
+
         # Run DeepFool attack
-        r, loop_i, label_orig, label_pert, pert_image = local_deepfool(im, net, max_iter=1000, region=(0, 0, 150, 150))
+        r, loop_i, label_orig, label_pert, pert_image = local_deepfool(im, net, max_iter=1000, region=(50, 50, 80, 80))
 
         # Load class labels from file
         labels = (
@@ -97,8 +96,6 @@ def make_examples():
         pert_image = (
             pert_image.cpu().view(pert_image.size()[-3:]).type(torch.FloatTensor)
         )
-        
-        original_images.append(tf(im))
         perturbed_images.append(tf(pert_image))
     return original_images, original_labels, perturbed_images, perturbed_labels
 
@@ -108,7 +105,7 @@ original_images, original_labels, perturbed_images, perturbed_labels = make_exam
 difference_images = []
 
 for orig, pert in zip(original_images, perturbed_images):
-    print(type(orig), type(pert))
+    # print(type(orig), type(pert))
     
     # Convert images to tensors
     if isinstance(orig, Image.Image): 
@@ -121,7 +118,7 @@ for orig, pert in zip(original_images, perturbed_images):
         pert_tensor = pert
     
     
-    print(type(orig_tensor), type(pert_tensor))
+    # print(type(orig_tensor), type(pert_tensor))
     
     # Calculate the difference
     diff_tensor = torch.abs(orig_tensor - pert_tensor)
@@ -148,19 +145,16 @@ plt.show()
 print(f"shape of original_images: {original_images[0].shape}")
 print(f"shape of perturbed_images: {transforms.ToTensor()(perturbed_images[0]).shape}")
 
-fig, ax = plt.subplots(3, 5, figsize=(12, 8))
+fig, ax = plt.subplots(2, 5, figsize=(12, 8))
 for col in range(5):
     ax[0][col].imshow(transforms.ToPILImage()(original_images[col]))
     ax[0][col].set_title(f"Original: {original_labels[col]}")
     ax[0][col].axis("off")
-    
-    ax[1][col].imshow(perturbation[col].transpose(2, 1, 0) * 255)
-    ax[1][col].set_title(f"Perturbation added")
-    ax[1][col].axis("off")
 
-    ax[2][col].imshow(perturbed_images[col])
-    ax[2][col].set_title(f"Perturbed image: {perturbed_labels[col]}")
-    ax[2][col].axis("off")
+for col in range(5):
+    ax[1][col].imshow(perturbed_images[col])
+    ax[1][col].set_title(f"Perturberd: {perturbed_labels[col]}")
+    ax[1][col].axis("off")
 
 fig.suptitle("DeepFool attack on ResNet34")
 plt.tight_layout()
