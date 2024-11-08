@@ -83,6 +83,7 @@ def universal_perturbation(
                         num_classes=num_classes,
                         overshoot=overshoot,
                         max_iter=max_iter_df,
+                        verbose=False,
                     )
 
                     perturbation = torch.from_numpy(perturbation).to(device).float()

@@ -126,7 +126,7 @@ def deepfool(image, net, num_classes=10, overshoot=0.02, max_iter=50):
 
 
 def local_deepfool(
-    image, net, num_classes=10, overshoot=0.02, max_iter=50, region=None
+    image, net, num_classes=10, overshoot=0.02, max_iter=50, region=None, verbose=True
 ):
     """
     DeepFool algorithm for adversarial attacks on a subimage.
@@ -246,12 +246,13 @@ def local_deepfool(
         label_pert = np.argmax(pred_p.detach().cpu().numpy().flatten())
 
         iter += 1
-        if iter % 100 == 0:
+        if iter % 100 == 0 and verbose:
             print(f"Iteration: {iter}, label_pert: {label_pert}/{label_orig}")
 
     # Scale final perturbation
     r_tot = r_tot
-    print(f"original label: {label_orig}, perturbed label: {label_pert}")
+    if verbose:
+        print(f"original label: {label_orig}, perturbed label: {label_pert}")
     return r_tot, iter, label_orig, label_pert, pert_image
 
 

@@ -27,23 +27,10 @@ train_set = torchvision.datasets.STL10(
     transform=transform,
 )
 
-"""# Limiter à 100 images par classe
-class_counts = defaultdict(int)
-max_per_class = 10
-filtered_indices = []
-
-for idx, (_, label) in enumerate(train_set):
-    if class_counts[label] < max_per_class:
-        filtered_indices.append(idx)
-        class_counts[label] += 1
-
-# Création du sous-ensemble personnalisé
-train_subset = torch.utils.data.Subset(train_set, filtered_indices)"""
-
-# Création du DataLoader avec le sous-ensemble
+# Création du DataLoader pour l'entraînement
 train_loader = torch.utils.data.DataLoader(
     train_set,
-    batch_size=10,
+    batch_size=50,
     shuffle=True,
     num_workers=2,
 )
@@ -57,7 +44,7 @@ test_set = torchvision.datasets.STL10(
 )
 
 test_loader = torch.utils.data.DataLoader(
-    test_set, batch_size=4, shuffle=False, num_workers=2
+    test_set, batch_size=50, shuffle=False, num_workers=2
 )
 
 # Classes du dataset STL-10
@@ -74,18 +61,48 @@ classes = (
     "truck",
 )
 
-# Charger le modèle ResNet-18
+# Charger le modèle ResNet-18 préentraîné (ImageNet)
 model = models.resnet18(pretrained=True)
 
-# Adapter le modèle pour STL-10 (10 classes au lieu de 1000)
+# Adapter le modèle pour STL-10 (10 classes au lieu de 1000 d'Imagenet)
 model.fc = nn.Linear(model.fc.in_features, len(classes))
 
-# Définir l'appareil (GPU si disponible)
+# Fine-tuning
+for param in model.parameters():
+    param.requires_grad = False
+
+for param in model.fc.parameters():
+    param.requires_grad = True
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model = model.to(device)
+optimizer = optim.SGD(model.fc.parameters(), lr=0.001, momentum=0.9)
+criterion = nn.CrossEntropyLoss()
+
+num_epochs = 20
+model.train()
+for epoch in range(num_epochs):
+    running_loss = 0.0
+    for inputs, labels in train_loader:
+        inputs, labels = inputs.to(device), labels.to(device)
+
+        optimizer.zero_grad()
+
+        outputs = model(inputs)
+
+        loss = criterion(outputs, labels)
+
+        loss.backward()
+
+        optimizer.step()
+
+        running_loss += loss.item()
+
+    print(f"Epoch [{epoch + 1}/{num_epochs}], Loss: {running_loss / len(train_loader)}")
+
+print("Training done")
 
 
-# Fonction pour afficher les images
 def imshow(img, label=""):
     npimg = img.detach().cpu().numpy()
     if npimg.shape[0] == 3:
@@ -97,7 +114,6 @@ def imshow(img, label=""):
     plt.axis("off")
 
 
-# Fonction pour charger une image individuelle
 def load_image(image_path, size=(96, 96)):
     transform = transforms.Compose(
         [
@@ -112,7 +128,7 @@ def load_image(image_path, size=(96, 96)):
 
 # Génération de la perturbation universelle
 v = universal_perturbation(
-    train_loader, model, v_size=96, device=device, delta=0.95, num_classes=len(classes)
+    train_loader, model, v_size=96, device=device, delta=0.6, num_classes=len(classes)
 )
 
 # Charger et tester une image
