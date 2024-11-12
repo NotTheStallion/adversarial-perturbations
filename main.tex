@@ -1,4 +1,4 @@
-    \documentclass{article}
+\documentclass{article}
 \usepackage{graphicx}
 \usepackage[utf8]{inputenc}
 \usepackage[letterpaper,top=2cm,bottom=2cm,left=3cm,right=3cm]{geometry}
@@ -9,7 +9,7 @@
 \usepackage{enumerate}
 \usepackage{amsmath}
 \usepackage{amssymb}
-
+\usepackage{isomath}
 \usepackage{tcolorbox,listings}
 \usepackage{fullpage}
 \usepackage{color}
@@ -106,9 +106,19 @@
 
 \section{Deepfool}
 
-% need to put the equations here
+The general idea behind the Deepfool algorithm is to find the minimal perturbation to add to an image so it gets wrongly classified. This perturbation is computed using two main equations :
 
-We have re-written the deepfool algorithm and used it on five images to test it. For each image, the algorithm will take the 10 most probable classifications and try to make the model converge toward one of those other classification by creating a perturbation. The perturbation chosen is then the one with the smallest norm. That's why we can see on figure \ref{fig:result_global_deepfool} that perturbed classifications tend to be similar to the original ones.
+\begin{equation}
+	\hat{l}(x_0) = \arg \min_{k \neq \hat{k}} \frac{|f_{k}(x_0) - f_{\hat{k}}(x_0)|}{\|w_{k} - w_{\hat{k}}\|_2}
+\end{equation}
+
+This first equation represents the closest classification frontier to approach, with $k$ being the original class of $x_0$, and $\hat{k}$ another class. $f$ represents the classification function, and $w$ its direction vector. When we know what classification $\hat{k}$ is the closest, we can compute the minimal perturbation to get the image to pass the frontier and be classified as $\hat{k}$ :
+
+\begin{equation}
+	r_*(x_0) = \frac{|f_{\hat{l}(x_0)}(x_0) - f_k(x_0)|}{\|w_{\hat{l}(x_0)} - w_k\|_2^2} (w_{\hat{l}(x_0)} - w_k)
+\end{equation}
+
+We have re-written the Deepfool algorithm and used it on five images to test it. For each image, the algorithm will take the 10 most probable classifications and try to make the model converge toward one of those other classification by creating a perturbation. The perturbation chosen is then the one with the smallest norm. That's why we can see on figure \ref{fig:result_global_deepfool} that perturbed classifications tend to be similar to the original ones.
 
 \begin{figure}[H]
     \centering
@@ -129,7 +139,13 @@ The perturbations are almost to totally imperceptible for the human eye. If we l
 \newpage
 \section{Localised Deepfool}
 
-We have reworked DeepFool to apply it in a localized manner on the image. We started by selecting a specific region of the image and then enforcing a transformation on that particular area. The algorithm still works this way, but sometimes will need to alter greatly the given region to fool the classification. On the first image of figure \ref{fig:vs_50-80}, we can for example clearly see the chosen region for perturbation.
+We have reworked DeepFool to apply it in a localized manner on the image. We started by selecting a specific region of the image and then enforcing a transformation on that particular area. The new equation used to compute minimal perturbation restricted to a region $R$ can then be written as follow :
+
+\begin{equation}
+	r_*(x_0) = \frac{|f_{\hat{l}(x_0)}(x_0) - f_k(x_0)|}{\|w_{\hat{l}(x_0)} - w_k\|_{2,R}^2} (w_{\hat{l}(x_0)} - w_k)^R
+\end{equation}
+
+The algorithm still works this way, but sometimes will need to alter greatly the given region to fool the classification. On the first image of figure \ref{fig:vs_50-80}, we can for example clearly see the chosen region for perturbation.
 
 \begin{figure}[H]
     \centering
