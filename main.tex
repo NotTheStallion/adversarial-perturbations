@@ -112,7 +112,7 @@ The general idea behind the Deepfool algorithm is to find the minimal perturbati
 	\hat{l}(x_0) = \arg \min_{k \neq \hat{k}} \frac{|f_{k}(x_0) - f_{\hat{k}}(x_0)|}{\|w_{k} - w_{\hat{k}}\|_2}
 \end{equation}
 
-This first equation represents the closest classification frontier to approach, with $k$ being the original class of $x_0$, and $\hat{k}$ another class. $f$ represents the classification function, and $w$ its direction vector. When we know what classification $\hat{k}$ is the closest, we can compute the minimal perturbation to get the image to pass the frontier and be classified as $\hat{k}$ :
+This first equation represents the closest classification frontier to approach, with $k$ being the original class of $x_0$, and $\hat{k}$ another class. $f_k$ represents the classification function output for a given class $k$, and $w_k$ is the direction vector of said function for a given class. When we know what classification $\hat{k}$ is the closest, we can compute the minimal perturbation to get the image to pass the frontier and be classified as $\hat{k}$ :
 
 \begin{equation}
 	r_*(x_0) = \frac{|f_{\hat{l}(x_0)}(x_0) - f_k(x_0)|}{\|w_{\hat{l}(x_0)} - w_k\|_2^2} (w_{\hat{l}(x_0)} - w_k)
