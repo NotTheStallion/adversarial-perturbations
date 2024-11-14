@@ -163,6 +163,41 @@ def diff(original_images, perturbed_images):
     return difference_images
 
 
+def plot_diff(original_images, perturbed_images):
+    difference_images = diff(original_images, perturbed_images)
+
+    # Display the difference images with colorbars
+    fig_diff, ax_diff = plt.subplots(1, 5, figsize=(20, 5))
+    for col in range(5):
+        # Convert the difference tensor to grayscale for visualization
+        diff_im = transforms.ToTensor()(difference_images[col])
+        diff_gray = torch.mean(diff_im, dim=0)  # Convert to grayscale by averaging channels
+        im = ax_diff[col].imshow(diff_gray, cmap="gray")
+        ax_diff[col].set_title(f"Difference {col+1}")
+        ax_diff[col].axis("off")
+        fig_diff.colorbar(im, ax=ax_diff[col], orientation='vertical')
+
+    fig_diff.suptitle("Difference between Original and Perturbed Images")
+    plt.tight_layout()
+    plt.show()
+    
+def plot_comparaison(original_images, perturbed_images, original_labels, perturbed_labels):
+    fig, ax = plt.subplots(2, 5, figsize=(12, 8))
+    for col in range(5):
+        ax[0][col].imshow(transforms.ToPILImage()(original_images[col]))
+        ax[0][col].set_title(f"Original: {original_labels[col]}")
+        ax[0][col].axis("off")
+
+    for col in range(5):
+        ax[1][col].imshow(transforms.ToPILImage()(perturbed_images[col]))
+        ax[1][col].set_title(f"Perturbed: {perturbed_labels[col]}")
+        ax[1][col].axis("off")
+
+    fig.suptitle("DeepFool attack on ResNet34")
+    plt.tight_layout()
+    plt.show()
+
+
 if __name__ == "__main__":
     import torch.nn as nn
     import torch.nn.functional as F
@@ -182,40 +217,14 @@ if __name__ == "__main__":
 
     original_images, original_labels, perturbed_images, perturbed_labels, max_pixel_values, diff_norms = make_examples()
 
-    difference_images = diff(original_images, perturbed_images)
-
-    # Display the difference images with colorbars
-    fig_diff, ax_diff = plt.subplots(1, 5, figsize=(20, 5))
-    for col in range(5):
-        # Convert the difference tensor to grayscale for visualization
-        diff = transforms.ToTensor()(difference_images[col])
-        diff_gray = torch.mean(diff, dim=0)  # Convert to grayscale by averaging channels
-        im = ax_diff[col].imshow(diff_gray, cmap="gray")
-        ax_diff[col].set_title(f"Difference {col+1}")
-        ax_diff[col].axis("off")
-        fig_diff.colorbar(im, ax=ax_diff[col], orientation='vertical')
-
-    fig_diff.suptitle("Difference between Original and Perturbed Images")
-    plt.tight_layout()
-    plt.show()
+    # plot_diff(original_images, perturbed_images)
+    
+    # plot_comparaison(original_images, perturbed_images, original_labels, perturbed_labels)
 
     print(f"shape of original_images: {original_images[0].shape}")
     print(f"shape of perturbed_images: {perturbed_images[0].shape}")
 
-    fig, ax = plt.subplots(2, 5, figsize=(12, 8))
-    for col in range(5):
-        ax[0][col].imshow(transforms.ToPILImage()(original_images[col]))
-        ax[0][col].set_title(f"Original: {original_labels[col]}")
-        ax[0][col].axis("off")
-
-    for col in range(5):
-        ax[1][col].imshow(transforms.ToPILImage()(perturbed_images[col]))
-        ax[1][col].set_title(f"Perturbed: {perturbed_labels[col]}")
-        ax[1][col].axis("off")
-
-    fig.suptitle("DeepFool attack on ResNet34")
-    plt.tight_layout()
-    plt.show()
+    
 
     # # Display bar charts for max pixel values and norms of differences for each image
     # for i in range(5):
