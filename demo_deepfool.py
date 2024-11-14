@@ -1,16 +1,19 @@
-
-
 def make_examples():
     # Load pretrained ResNet-34 model
     net = models.resnet34(weights=models.ResNet34_Weights.DEFAULT)
+
+    # Switch to evaluation mode
     net.eval()
 
     original_images = []
     original_labels = []
     perturbed_images = []
     perturbed_labels = []
+    max_pixel_values = []
+    diff_norms = []
 
     for i in range(1, 6):
+        # Load image
         im_orig = Image.open(f"data/demo_deepfool/test_img{i}.jpg")
 
         # Mean and std used for normalization (ImageNet stats)
@@ -20,10 +23,9 @@ def make_examples():
         original_images.append(
             transforms.Compose(
                 [
-                    transforms.Resize(256),
+                    transforms.Resize(256),  # Updated from transforms.Scale
                     transforms.CenterCrop(224),
                     transforms.ToTensor(),
-                    transforms.Normalize(mean=mean, std=std),
                 ]
             )(im_orig)
         )
@@ -31,13 +33,13 @@ def make_examples():
         # Preprocessing the image: resize, crop, convert to tensor, and normalize
         im = transforms.Compose(
             [
-                transforms.Resize(256),
+                transforms.Resize(256),  # Updated from transforms.Scale
                 transforms.CenterCrop(224),
                 transforms.ToTensor(),
                 transforms.Normalize(mean=mean, std=std),
             ]
-        )(im_orig)
-
+        )(im_orig).cpu()  # Ensure the tensor is on the CPU
+        
         # Creating the region mask
         input_shape = im.cpu().numpy().shape
         print(input_shape[1:])
@@ -53,6 +55,44 @@ def make_examples():
             im, net, max_iter=1000, region_mask=region_mask
         )
 
+        # PARTIE UTILISEE POUR PLOT LES VALEURS DE PIXELS ET NORMES EN FONCTION DES REGIONS CHOISIES
+        # # Define the regions for local DeepFool (4x4 grid)
+        # height, width = im.shape[1], im.shape[2]
+        # regions = []
+        # grid_size = 4
+        # step_h = height // grid_size
+        # step_w = width // grid_size
+
+        # for row in range(grid_size):
+        #     for col in range(grid_size):
+        #         top = row * step_h
+        #         left = col * step_w
+        #         bottom = top + step_h
+        #         right = left + step_w
+        #         regions.append((top, left, bottom, right))
+
+        # # Apply local DeepFool to each region
+        # image_max_pixel_values = []
+        # image_diff_norms = []
+        # for region in regions:
+        #     r, loop_i, label_orig, label_pert, pert_image = local_deepfool(
+        #         im, net, max_iter=1000, region=region
+        #     )
+
+        #     # Ensure perturbed image is on the CPU
+        #     pert_image = pert_image.cpu()
+
+        #     # Calculate the difference
+        #     diff_tensor = torch.abs(im - pert_image)
+        #     diff_gray = torch.mean(diff_tensor, dim=0)  # Convert to grayscale by averaging channels
+
+        #     # Store the max pixel value and norm of the difference
+        #     image_max_pixel_values.append(diff_gray.max().item())
+        #     image_diff_norms.append(torch.norm(diff_gray).item())
+
+        # max_pixel_values.append(image_max_pixel_values)
+        # diff_norms.append(image_diff_norms)
+
         # Load class labels from file
         labels = (
             open(os.path.join("data/demo_deepfool/synset_words.txt"), "r")
@@ -61,7 +101,7 @@ def make_examples():
         )
 
         # Get original and perturbed class labels
-        str_label_orig = labels[int(label_orig)].split(",")[0]
+        str_label_orig = labels[int(label_orig)].split(",")[0]  # Changed np.int to int
         str_label_pert = labels[int(label_pert)].split(",")[0]
 
         original_labels.append(str_label_orig.split()[1:])
@@ -87,24 +127,21 @@ def make_examples():
                 transforms.Lambda(clip),  # Clip the values to ensure valid image range
                 transforms.ToPILImage(),  # Convert tensor back to PIL image
                 transforms.CenterCrop(224),  # Center crop to 224x224
+                transforms.ToTensor(),  # Convert back to tensor
             ]
         )
-        print(f"orignal image shape: {im.size()}")
-        print(f"perturbed image shape: {pert_image.size()}")
 
         pert_image = (
-            pert_image.cpu().view(pert_image.size()[-3:]).type(torch.FloatTensor)
+            pert_image.view(pert_image.size()[-3:]).type(torch.FloatTensor)
         )
-        perturbed_images.append((pert_image))
-    return original_images, original_labels, perturbed_images, perturbed_labels
-
+        perturbed_images.append(tf(pert_image))
+    return original_images, original_labels, perturbed_images, perturbed_labels, max_pixel_values, diff_norms
 
 
 def diff(original_images, perturbed_images):
-    """
-    Calculate and display the difference between original and perturbed images
-    """
+    # Calculate and display the difference between original and perturbed images
     difference_images = []
+
     for orig, pert in zip(original_images, perturbed_images):
         # Convert images to tensors
         if isinstance(orig, Image.Image):
@@ -116,11 +153,14 @@ def diff(original_images, perturbed_images):
         else:
             pert_tensor = pert
 
+        # Calculate the difference
         diff_tensor = torch.abs(orig_tensor - pert_tensor)
 
-        difference_images.append(diff_tensor)
+        # Convert the difference tensor back to a PIL image
+        diff_image = transforms.ToPILImage()(diff_tensor)
+        difference_images.append(diff_image)
+        
     return difference_images
-
 
 
 if __name__ == "__main__":
@@ -139,25 +179,28 @@ if __name__ == "__main__":
     from deepfool.deepfool import deepfool, local_deepfool
     import os
     
-    original_images, original_labels, perturbed_images, perturbed_labels = make_examples()
 
-    # Calculate and display the difference between original and perturbed images
+    original_images, original_labels, perturbed_images, perturbed_labels, max_pixel_values, diff_norms = make_examples()
+
     difference_images = diff(original_images, perturbed_images)
 
-    # Display the difference images
-    fig_diff, ax_diff = plt.subplots(1, 5, figsize=(12, 4))
+    # Display the difference images with colorbars
+    fig_diff, ax_diff = plt.subplots(1, 5, figsize=(20, 5))
     for col in range(5):
-        # Rescale the difference image to the range [0, 1] for better visualization
-        diff_im = difference_images[col]
-        # TODO : verify if the normalization is correct
-        diff_rescaled = transforms.ToPILImage()(diff_im - diff_im.min() / (diff_im.max()-diff_im.min()))
-        ax_diff[col].imshow(diff_rescaled)
+        # Convert the difference tensor to grayscale for visualization
+        diff = transforms.ToTensor()(difference_images[col])
+        diff_gray = torch.mean(diff, dim=0)  # Convert to grayscale by averaging channels
+        im = ax_diff[col].imshow(diff_gray, cmap="gray")
         ax_diff[col].set_title(f"Difference {col+1}")
         ax_diff[col].axis("off")
+        fig_diff.colorbar(im, ax=ax_diff[col], orientation='vertical')
 
     fig_diff.suptitle("Difference between Original and Perturbed Images")
     plt.tight_layout()
     plt.show()
+
+    print(f"shape of original_images: {original_images[0].shape}")
+    print(f"shape of perturbed_images: {perturbed_images[0].shape}")
 
     fig, ax = plt.subplots(2, 5, figsize=(12, 8))
     for col in range(5):
@@ -167,9 +210,36 @@ if __name__ == "__main__":
 
     for col in range(5):
         ax[1][col].imshow(transforms.ToPILImage()(perturbed_images[col]))
-        ax[1][col].set_title(f"Perturberd: {perturbed_labels[col]}")
+        ax[1][col].set_title(f"Perturbed: {perturbed_labels[col]}")
         ax[1][col].axis("off")
 
     fig.suptitle("DeepFool attack on ResNet34")
     plt.tight_layout()
     plt.show()
+
+    # # Display bar charts for max pixel values and norms of differences for each image
+    # for i in range(5):
+    #     fig, ax1 = plt.subplots(figsize=(10, 5))
+    #     indices = range(16)
+    #     max_vals = max_pixel_values[i]
+    #     norm_vals = diff_norms[i]
+        
+    #     width = 0.35  # Width of the bars
+    #     ax1.bar(indices, max_vals, width=width, label='Max Pixel Value', alpha=0.7, color='b')
+    #     ax1.set_xlabel('Region Index')
+    #     ax1.set_ylabel('Max Pixel Value', color='b')
+    #     ax1.tick_params(axis='y', labelcolor='b')
+        
+    #     ax2 = ax1.twinx()  # Instantiate a second axes that shares the same x-axis
+    #     ax2.bar([x + width for x in indices], norm_vals, width=width, label='Norm of Difference', alpha=0.7, color='r')
+    #     ax2.set_ylabel('Norm of Difference', color='r')
+    #     ax2.tick_params(axis='y', labelcolor='r')
+        
+    #     plt.title(f'Max Pixel Value and Norm of Difference for Image {i+1}')
+    #     fig.tight_layout()
+    #     plt.show()
+
+    # # Print max pixel values and norms of differences
+    # for i, (max_vals, norm_vals) in enumerate(zip(max_pixel_values, diff_norms)):
+    #     for j, (max_val, norm_val) in enumerate(zip(max_vals, norm_vals)):
+    #         print(f"Image {i+1}, Region {j+1}: Max Pixel Value = {max_val}, Norm of Difference = {norm_val}")

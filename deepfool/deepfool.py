@@ -128,7 +128,7 @@ def deepfool(image, net, num_classes=10, overshoot=0.02, max_iter=50):
 
 
 def local_deepfool(
-    image, net, num_classes=10, overshoot=0.02, max_iter=50, region_mask=None
+    image, net, num_classes=10, overshoot=0.02, max_iter=50, region_mask=None, verbose=True
 ):
     """
     region_mask : A matrix that contains 1 where you want the perturbation to be applied and 0 elsewhere. By default the perturbation is applied to the entire image.
@@ -204,11 +204,12 @@ def local_deepfool(
         label_pert = np.argmax(pred_p.detach().cpu().numpy().flatten())
 
         iter += 1
-        if iter % 100 == 0:
+        if iter % 100 == 0 and verbose:
             print(f"Iteration: {iter}, label_pert: {label_pert}/{label_orig}")
 
     # Scale final perturbation
     r_tot = r_tot
-    print(f"original label: {label_orig}, perturbed label: {label_pert}")
+    if verbose:
+        print(f"original label: {label_orig}, perturbed label: {label_pert}")
     return r_tot, iter, label_orig, label_pert, pert_image
 
