@@ -1,24 +1,8 @@
-import torch.nn as nn
-import torch.nn.functional as F
-import torchvision
-import torchvision.transforms as transforms
-import numpy as np
-import matplotlib.pyplot as plt
-import torch
-import torch.optim as optim
-import torch.utils.data as data_utils
-import math
-import torchvision.models as models
-from PIL import Image
-from deepfool.deepfool import deepfool, local_deepfool
-import os
 
 
 def make_examples():
     # Load pretrained ResNet-34 model
     net = models.resnet34(weights=models.ResNet34_Weights.DEFAULT)
-
-    # Switch to evaluation mode
     net.eval()
 
     original_images = []
@@ -27,7 +11,6 @@ def make_examples():
     perturbed_labels = []
 
     for i in range(1, 6):
-        # Load image
         im_orig = Image.open(f"data/demo_deepfool/test_img{i}.jpg")
 
         # Mean and std used for normalization (ImageNet stats)
@@ -37,9 +20,10 @@ def make_examples():
         original_images.append(
             transforms.Compose(
                 [
-                    transforms.Resize(256),  # Updated from transforms.Scale
+                    transforms.Resize(256),
                     transforms.CenterCrop(224),
                     transforms.ToTensor(),
+                    transforms.Normalize(mean=mean, std=std),
                 ]
             )(im_orig)
         )
@@ -47,16 +31,26 @@ def make_examples():
         # Preprocessing the image: resize, crop, convert to tensor, and normalize
         im = transforms.Compose(
             [
-                transforms.Resize(256),  # Updated from transforms.Scale
+                transforms.Resize(256),
                 transforms.CenterCrop(224),
                 transforms.ToTensor(),
                 transforms.Normalize(mean=mean, std=std),
             ]
         )(im_orig)
 
+        # Creating the region mask
+        input_shape = im.cpu().numpy().shape
+        print(input_shape[1:])
+        region_mask = np.zeros(input_shape[1:], dtype=np.int32)
+        region_mask[50:150, 50:150] = 1
+
+        # plt.imshow((region_mask))
+        # plt.imshow(region_mask, cmap='gray')
+        # plt.show()
+
         # Run DeepFool attack
         r, loop_i, label_orig, label_pert, pert_image = local_deepfool(
-            im, net, max_iter=1000, region=((50, 50, 80, 80))
+            im, net, max_iter=1000, region_mask=region_mask
         )
 
         # Load class labels from file
@@ -67,7 +61,7 @@ def make_examples():
         )
 
         # Get original and perturbed class labels
-        str_label_orig = labels[int(label_orig)].split(",")[0]  # Changed np.int to int
+        str_label_orig = labels[int(label_orig)].split(",")[0]
         str_label_pert = labels[int(label_pert)].split(",")[0]
 
         original_labels.append(str_label_orig.split()[1:])
@@ -95,70 +89,87 @@ def make_examples():
                 transforms.CenterCrop(224),  # Center crop to 224x224
             ]
         )
+        print(f"orignal image shape: {im.size()}")
+        print(f"perturbed image shape: {pert_image.size()}")
 
         pert_image = (
             pert_image.cpu().view(pert_image.size()[-3:]).type(torch.FloatTensor)
         )
-        perturbed_images.append(tf(pert_image))
+        perturbed_images.append((pert_image))
     return original_images, original_labels, perturbed_images, perturbed_labels
 
 
-original_images, original_labels, perturbed_images, perturbed_labels = make_examples()
-# Calculate and display the difference between original and perturbed images
-difference_images = []
 
-for orig, pert in zip(original_images, perturbed_images):
-    # print(type(orig), type(pert))
+def diff(original_images, perturbed_images):
+    """
+    Calculate and display the difference between original and perturbed images
+    """
+    difference_images = []
+    for orig, pert in zip(original_images, perturbed_images):
+        # Convert images to tensors
+        if isinstance(orig, Image.Image):
+            orig_tensor = transforms.ToTensor()(orig)
+        else:
+            orig_tensor = orig
+        if isinstance(pert, Image.Image):
+            pert_tensor = transforms.ToTensor()(pert)
+        else:
+            pert_tensor = pert
+
+        diff_tensor = torch.abs(orig_tensor - pert_tensor)
+
+        difference_images.append(diff_tensor)
+    return difference_images
+
+
+
+if __name__ == "__main__":
+    import torch.nn as nn
+    import torch.nn.functional as F
+    import torchvision
+    import torchvision.transforms as transforms
+    import numpy as np
+    import matplotlib.pyplot as plt
+    import torch
+    import torch.optim as optim
+    import torch.utils.data as data_utils
+    import math
+    import torchvision.models as models
+    from PIL import Image
+    from deepfool.deepfool import deepfool, local_deepfool
+    import os
     
-    # Convert images to tensors
-    if isinstance(orig, Image.Image): 
-        orig_tensor = transforms.ToTensor()(orig)
-    else :
-        orig_tensor = orig
-    if isinstance(pert, Image.Image): 
-        pert_tensor = transforms.ToTensor()(pert)
-    else:
-        pert_tensor = pert
-    
-    
-    # print(type(orig_tensor), type(pert_tensor))
-    
-    # Calculate the difference
-    diff_tensor = torch.abs(orig_tensor - pert_tensor)
+    original_images, original_labels, perturbed_images, perturbed_labels = make_examples()
 
-    # Convert the difference tensor back to a PIL image
-    diff_image = transforms.ToPILImage()(diff_tensor)
-    difference_images.append(diff_image)
+    # Calculate and display the difference between original and perturbed images
+    difference_images = diff(original_images, perturbed_images)
 
-# print(transforms.ToTensor()(difference_images[-1]))
+    # Display the difference images
+    fig_diff, ax_diff = plt.subplots(1, 5, figsize=(12, 4))
+    for col in range(5):
+        # Rescale the difference image to the range [0, 1] for better visualization
+        diff_im = difference_images[col]
+        # TODO : verify if the normalization is correct
+        diff_rescaled = transforms.ToPILImage()(diff_im - diff_im.min() / (diff_im.max()-diff_im.min()))
+        ax_diff[col].imshow(diff_rescaled)
+        ax_diff[col].set_title(f"Difference {col+1}")
+        ax_diff[col].axis("off")
 
-# Display the difference images
-fig_diff, ax_diff = plt.subplots(1, 5, figsize=(12, 4))
-for col in range(5):
-    # Rescale the difference image to the range [0, 1] for better visualization
-    diff = transforms.ToTensor()(difference_images[col])
-    diff_rescaled = transforms.ToPILImage()(diff / diff.max())
-    ax_diff[col].imshow(diff_rescaled, cmap="gray")
-    ax_diff[col].set_title(f"Difference {col+1}")
-    ax_diff[col].axis("off")
+    fig_diff.suptitle("Difference between Original and Perturbed Images")
+    plt.tight_layout()
+    plt.show()
 
-fig_diff.suptitle("Difference between Original and Perturbed Images")
-plt.tight_layout()
-plt.show()
-print(f"shape of original_images: {original_images[0].shape}")
-print(f"shape of perturbed_images: {transforms.ToTensor()(perturbed_images[0]).shape}")
+    fig, ax = plt.subplots(2, 5, figsize=(12, 8))
+    for col in range(5):
+        ax[0][col].imshow(transforms.ToPILImage()(original_images[col]))
+        ax[0][col].set_title(f"Original: {original_labels[col]}")
+        ax[0][col].axis("off")
 
-fig, ax = plt.subplots(2, 5, figsize=(12, 8))
-for col in range(5):
-    ax[0][col].imshow(transforms.ToPILImage()(original_images[col]))
-    ax[0][col].set_title(f"Original: {original_labels[col]}")
-    ax[0][col].axis("off")
+    for col in range(5):
+        ax[1][col].imshow(transforms.ToPILImage()(perturbed_images[col]))
+        ax[1][col].set_title(f"Perturberd: {perturbed_labels[col]}")
+        ax[1][col].axis("off")
 
-for col in range(5):
-    ax[1][col].imshow(perturbed_images[col])
-    ax[1][col].set_title(f"Perturberd: {perturbed_labels[col]}")
-    ax[1][col].axis("off")
-
-fig.suptitle("DeepFool attack on ResNet34")
-plt.tight_layout()
-plt.show()
+    fig.suptitle("DeepFool attack on ResNet34")
+    plt.tight_layout()
+    plt.show()
