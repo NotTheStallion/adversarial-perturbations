@@ -51,47 +51,50 @@ def make_examples():
         # plt.show()
 
         # Run DeepFool attack
-        r, loop_i, label_orig, label_pert, pert_image = local_deepfool(
-            im, net, max_iter=1000, region_mask=region_mask
-        )
+        #r, loop_i, label_orig, label_pert, pert_image = local_deepfool(
+        #    im, net, max_iter=1000, region_mask=region_mask
+        #)
 
         # PARTIE UTILISEE POUR PLOT LES VALEURS DE PIXELS ET NORMES EN FONCTION DES REGIONS CHOISIES
-        # # Define the regions for local DeepFool (4x4 grid)
-        # height, width = im.shape[1], im.shape[2]
-        # regions = []
-        # grid_size = 4
-        # step_h = height // grid_size
-        # step_w = width // grid_size
+        # Define the regions for local DeepFool (4x4 grid)
+        height, width = im.shape[1], im.shape[2]
+        regions = []
+        grid_size = 4
+        step_h = height // grid_size
+        step_w = width // grid_size
 
-        # for row in range(grid_size):
-        #     for col in range(grid_size):
-        #         top = row * step_h
-        #         left = col * step_w
-        #         bottom = top + step_h
-        #         right = left + step_w
-        #         regions.append((top, left, bottom, right))
+        for row in range(grid_size):
+            for col in range(grid_size):
+                top = row * step_h
+                left = col * step_w
+                bottom = top + step_h
+                right = left + step_w
+                regions.append([left, right, top, bottom])
 
-        # # Apply local DeepFool to each region
-        # image_max_pixel_values = []
-        # image_diff_norms = []
-        # for region in regions:
-        #     r, loop_i, label_orig, label_pert, pert_image = local_deepfool(
-        #         im, net, max_iter=1000, region=region
-        #     )
+        # Apply local DeepFool to each region
+        image_max_pixel_values = []
+        image_diff_norms = []
+        for region in regions:
+            region_mask = np.zeros(input_shape[1:], dtype=np.int32)
+            region_mask[region[0]:region[1], region[2]:region[3]] = 1
+            
+            r, loop_i, label_orig, label_pert, pert_image = local_deepfool(
+                im, net, max_iter=1000, region_mask=region_mask
+            )
 
-        #     # Ensure perturbed image is on the CPU
-        #     pert_image = pert_image.cpu()
+            # Ensure perturbed image is on the CPU
+            pert_image = pert_image.cpu()
 
-        #     # Calculate the difference
-        #     diff_tensor = torch.abs(im - pert_image)
-        #     diff_gray = torch.mean(diff_tensor, dim=0)  # Convert to grayscale by averaging channels
+            # Calculate the difference
+            diff_tensor = torch.abs(im - pert_image)
+            diff_gray = torch.mean(diff_tensor, dim=0)  # Convert to grayscale by averaging channels
 
-        #     # Store the max pixel value and norm of the difference
-        #     image_max_pixel_values.append(diff_gray.max().item())
-        #     image_diff_norms.append(torch.norm(diff_gray).item())
+            # Store the max pixel value and norm of the difference
+            image_max_pixel_values.append(diff_gray.max().item())
+            image_diff_norms.append(torch.norm(diff_gray).item())
 
-        # max_pixel_values.append(image_max_pixel_values)
-        # diff_norms.append(image_diff_norms)
+        max_pixel_values.append(image_max_pixel_values)
+        diff_norms.append(image_diff_norms)
 
         # Load class labels from file
         labels = (
@@ -217,38 +220,38 @@ if __name__ == "__main__":
 
     original_images, original_labels, perturbed_images, perturbed_labels, max_pixel_values, diff_norms = make_examples()
 
-    # plot_diff(original_images, perturbed_images)
+    plot_diff(original_images, perturbed_images)
     
-    # plot_comparaison(original_images, perturbed_images, original_labels, perturbed_labels)
+    plot_comparaison(original_images, perturbed_images, original_labels, perturbed_labels)
 
     print(f"shape of original_images: {original_images[0].shape}")
     print(f"shape of perturbed_images: {perturbed_images[0].shape}")
 
     
 
-    # # Display bar charts for max pixel values and norms of differences for each image
-    # for i in range(5):
-    #     fig, ax1 = plt.subplots(figsize=(10, 5))
-    #     indices = range(16)
-    #     max_vals = max_pixel_values[i]
-    #     norm_vals = diff_norms[i]
+    # Display bar charts for max pixel values and norms of differences for each image
+    for i in range(5):
+        fig, ax1 = plt.subplots(figsize=(10, 5))
+        indices = range(16)
+        max_vals = max_pixel_values[i]
+        norm_vals = diff_norms[i]
         
-    #     width = 0.35  # Width of the bars
-    #     ax1.bar(indices, max_vals, width=width, label='Max Pixel Value', alpha=0.7, color='b')
-    #     ax1.set_xlabel('Region Index')
-    #     ax1.set_ylabel('Max Pixel Value', color='b')
-    #     ax1.tick_params(axis='y', labelcolor='b')
+        width = 0.35  # Width of the bars
+        ax1.bar(indices, max_vals, width=width, label='Max Pixel Value', alpha=0.7, color='b')
+        ax1.set_xlabel('Region Index')
+        ax1.set_ylabel('Max Pixel Value', color='b')
+        ax1.tick_params(axis='y', labelcolor='b')
         
-    #     ax2 = ax1.twinx()  # Instantiate a second axes that shares the same x-axis
-    #     ax2.bar([x + width for x in indices], norm_vals, width=width, label='Norm of Difference', alpha=0.7, color='r')
-    #     ax2.set_ylabel('Norm of Difference', color='r')
-    #     ax2.tick_params(axis='y', labelcolor='r')
+        ax2 = ax1.twinx()  # Instantiate a second axes that shares the same x-axis
+        ax2.bar([x + width for x in indices], norm_vals, width=width, label='Norm of Difference', alpha=0.7, color='r')
+        ax2.set_ylabel('Norm of Difference', color='r')
+        ax2.tick_params(axis='y', labelcolor='r')
         
-    #     plt.title(f'Max Pixel Value and Norm of Difference for Image {i+1}')
-    #     fig.tight_layout()
-    #     plt.show()
+        plt.title(f'Max Pixel Value and Norm of Difference for Image {i+1}')
+        fig.tight_layout()
+        plt.show()
 
-    # # Print max pixel values and norms of differences
-    # for i, (max_vals, norm_vals) in enumerate(zip(max_pixel_values, diff_norms)):
-    #     for j, (max_val, norm_val) in enumerate(zip(max_vals, norm_vals)):
-    #         print(f"Image {i+1}, Region {j+1}: Max Pixel Value = {max_val}, Norm of Difference = {norm_val}")
+    # Print max pixel values and norms of differences
+    for i, (max_vals, norm_vals) in enumerate(zip(max_pixel_values, diff_norms)):
+        for j, (max_val, norm_val) in enumerate(zip(max_vals, norm_vals)):
+            print(f"Image {i+1}, Region {j+1}: Max Pixel Value = {max_val}, Norm of Difference = {norm_val}")
