@@ -1,0 +1,16 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+tensorflow = "==1.13.2"
+numpy = "==1.16.0"
+pillow = "==6.2.0"
+scikit-image = "==0.14.2"
+opencv-python = "==4.0.0.21"
+
+[dev-packages]
+
+[requires]
+python_version = "3.12"
