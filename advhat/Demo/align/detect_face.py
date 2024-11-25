@@ -86,10 +86,13 @@ class Network(object):
         data_dict = np.load(data_path, encoding='latin1', allow_pickle=True).item() #pylint: disable=no-member
 
         for op_name in data_dict:
+            print("="*20, op_name)
             with tf.variable_scope(op_name, reuse=True):
                 for param_name, data in iteritems(data_dict[op_name]):
+                    print("######## storing : ", param_name)
                     try:
                         var = tf.get_variable(param_name)
+                        print("######## variable : ", var)
                         session.run(var.assign(data))
                     except ValueError:
                         if not ignore_missing:
@@ -281,7 +284,10 @@ def create_mtcnn(sess, model_path):
     with tf.variable_scope('pnet'):
         data = tf.placeholder(tf.float32, (None,None,None,3), 'input')
         pnet = PNet({'data':data})
+        print("="*20, "loading model params")
         pnet.load(os.path.join(model_path, 'det1.npy'), sess)
+        # know if the loading was successful
+        print("="*20, "model params loaded")
     with tf.variable_scope('rnet'):
         data = tf.placeholder(tf.float32, (None,24,24,3), 'input')
         rnet = RNet({'data':data})
