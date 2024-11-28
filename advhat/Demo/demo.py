@@ -49,6 +49,11 @@ def main(args):
     embedding = graph.get_tensor_by_name("embedding:0")
     # adding model params to graph
     # graph.get_tensor_by_name("pnet/conv4-2_1/Assign:0")
+    # display all nodes in graph
+    print("============= All nodes in graph:")
+    for op in graph.get_operations():
+        print(op.name)
+    print("============= All nodes in graph end")
     minsize = 100
     threshold = [0.6, 0.7, 0.7]
     factor = 0.709

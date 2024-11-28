@@ -93,7 +93,9 @@ class Network(object):
                     try:
                         var = tf.get_variable(param_name)
                         print("######## variable : ", var)
+                        print(data)
                         session.run(var.assign(data))
+                        print("======== assigned")
                     except ValueError:
                         if not ignore_missing:
                             raise
