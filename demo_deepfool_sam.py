@@ -100,8 +100,8 @@ def make_examples():
         region_masks.append(region_mask)
 
         # plt.imshow((region_mask))
-        plt.imshow(region_mask, cmap='gray')
-        plt.show()
+        # plt.imshow(region_mask, cmap='gray')
+        # plt.show()
 
         r, loop_i, label_orig, label_pert, pert_image = local_deepfool(
             im, net, 10, max_iter=1000, region_mask=region_mask
@@ -178,19 +178,25 @@ def diff(original_images, perturbed_images):
     return difference_images
 
 
-def plot_diff(original_images, perturbed_images):
+def plot_diff(original_images, perturbed_images, region_masks=None):
     difference_images = diff(original_images, perturbed_images)
 
     # Display the difference images with colorbars
-    fig_diff, ax_diff = plt.subplots(1, 6, figsize=(20, 5))
+    fig_diff, ax_diff = plt.subplots(2, 6, figsize=(20, 5))
+    for col in range(6):
+        ax_diff[0][col].imshow(transforms.ToPILImage()(region_masks[col]), cmap='gray')
+        ax_diff[0][col].set_title(f"Region {col+1}")
+        ax_diff[0][col].axis("off")
+    
+    
     for col in range(6):
         # Convert the difference tensor to grayscale for visualization
         diff_im = transforms.ToTensor()(difference_images[col])
         diff_gray = torch.mean(diff_im, dim=0)  # Convert to grayscale by averaging channels
-        im = ax_diff[col].imshow(diff_gray, cmap="gray")
-        ax_diff[col].set_title(f"Difference {col+1}")
-        ax_diff[col].axis("off")
-        fig_diff.colorbar(im, ax=ax_diff[col], orientation='vertical')
+        im = ax_diff[1][col].imshow(diff_gray, cmap="gray")
+        ax_diff[1][col].set_title(f"Difference {col+1}")
+        ax_diff[1][col].axis("off")
+        fig_diff.colorbar(im, ax=ax_diff[1][col], orientation='vertical')
 
     fig_diff.suptitle("Difference between Original and Perturbed Images")
     plt.tight_layout()
@@ -230,9 +236,9 @@ if __name__ == "__main__":
     import os
     
 
-    original_images, original_labels, perturbed_images, perturbed_labels, max_pixel_values, diff_norms = make_examples()
+    original_images, original_labels, perturbed_images, perturbed_labels, max_pixel_values, diff_norms, region_masks = make_examples()
 
-    plot_diff(original_images, perturbed_images)
+    plot_diff(original_images, perturbed_images, region_masks)
     
     plot_comparaison(original_images, perturbed_images, original_labels, perturbed_labels)
 
