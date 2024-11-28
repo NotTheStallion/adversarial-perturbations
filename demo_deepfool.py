@@ -12,7 +12,7 @@ def make_examples():
     max_pixel_values = []
     diff_norms = []
 
-    for i in range(1, 6):
+    for i in range(1, 7):
         # Load image
         im_orig = Image.open(f"data/demo_deepfool/test_img{i}.jpg")
 
@@ -55,8 +55,8 @@ def make_examples():
         #    im, net, max_iter=1000, region_mask=region_mask
         # )
         #DEMO DEEPFOOL SPECIFIC
-        r, loop_i, label_orig, label_pert, pert_image = deepfool_specific(
-           im, net, 413, max_iter=1000
+        r, loop_i, label_orig, label_pert, pert_image = local_deepfool(
+           im, net, 10, max_iter=1000
         )
 
         # PARTIE UTILISEE POUR PLOT LES VALEURS DE PIXELS ET NORMES EN FONCTION DES REGIONS CHOISIES
@@ -174,8 +174,8 @@ def plot_diff(original_images, perturbed_images):
     difference_images = diff(original_images, perturbed_images)
 
     # Display the difference images with colorbars
-    fig_diff, ax_diff = plt.subplots(1, 5, figsize=(20, 5))
-    for col in range(5):
+    fig_diff, ax_diff = plt.subplots(1, 6, figsize=(20, 5))
+    for col in range(6):
         # Convert the difference tensor to grayscale for visualization
         diff_im = transforms.ToTensor()(difference_images[col])
         diff_gray = torch.mean(diff_im, dim=0)  # Convert to grayscale by averaging channels
@@ -189,13 +189,13 @@ def plot_diff(original_images, perturbed_images):
     plt.show()
     
 def plot_comparaison(original_images, perturbed_images, original_labels, perturbed_labels):
-    fig, ax = plt.subplots(2, 5, figsize=(12, 8))
-    for col in range(5):
+    fig, ax = plt.subplots(2, 6, figsize=(12, 8))
+    for col in range(6):
         ax[0][col].imshow(transforms.ToPILImage()(original_images[col]))
         ax[0][col].set_title(f"Original: {original_labels[col]}")
         ax[0][col].axis("off")
 
-    for col in range(5):
+    for col in range(6):
         ax[1][col].imshow(transforms.ToPILImage()(perturbed_images[col]))
         ax[1][col].set_title(f"Perturbed: {perturbed_labels[col]}")
         ax[1][col].axis("off")
