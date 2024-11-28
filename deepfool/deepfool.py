@@ -114,7 +114,7 @@ def deepfool(image, net, num_classes=10, overshoot=0.02, max_iter=50):
         iter += 1  # Increment the iteration counter
 
     # Final perturbation scaling by (1 + overshoot)
-    r_tot = r_tot  # Scaling the perturbation vector
+    r_tot = (1 + overshoot) * r_tot  # Scaling the perturbation vector
 
     return (
         r_tot,
@@ -125,15 +125,19 @@ def deepfool(image, net, num_classes=10, overshoot=0.02, max_iter=50):
     )  # Return the total perturbation, iteration count, original and new labels, and perturbed image
 
 
-
-
 def local_deepfool(
-    image, net, num_classes=10, overshoot=0.02, max_iter=50, region_mask=None, verbose=True
+    image,
+    net,
+    num_classes=10,
+    overshoot=0.02,
+    max_iter=50,
+    region_mask=None,
+    verbose=True,
 ):
     """
     region_mask : A matrix that contains 1 where you want the perturbation to be applied and 0 elsewhere. By default the perturbation is applied to the entire image.
     """
-    
+
     is_cuda = torch.cuda.is_available()
     if is_cuda:
         image = image.cuda()
@@ -208,15 +212,23 @@ def local_deepfool(
             print(f"Iteration: {iter}, label_pert: {label_pert}/{label_orig}")
 
     # Scale final perturbation
-    r_tot = r_tot
+    r_tot = (1 + overshoot) * r_tot
+
     if verbose:
         print(f"original label: {label_orig}, perturbed label: {label_pert}")
     return r_tot, iter, label_orig, label_pert, pert_image
 
 
-
 # DEEPFOOL where you can chose to which label you want to fool your image
-def deepfool_specific(image, net, specific_label, num_classes=10, overshoot=0.02, max_iter=50):
+def deepfool_specific(
+    image,
+    net,
+    specific_label,
+    region_mask=None,
+    num_classes=10,
+    overshoot=0.02,
+    max_iter=50,
+):
     """
     DeepFool algorithm for adversarial attacks.
 
@@ -287,10 +299,17 @@ def deepfool_specific(image, net, specific_label, num_classes=10, overshoot=0.02
         )  # Store the gradient of the current class
 
         # w_k is the direction to move in order to change class
-        w_k = cur_grad - grad_origin  # Eq 8 in the paper
+        w_k = np.zeros_like(cur_grad)
+        if region_mask is None:
+            w_k[0] = cur_grad[0] - grad_origin[0]
+        else:
+            w_k[0] = (cur_grad[0] - grad_origin[0]) * region_mask
+        # w_k = cur_grad - grad_origin  # Eq 8 in the paper
 
         # Difference in activation between current class and original class
-        f_k = (pred_p[0, specific_label] - pred_p[0, label_orig]).item()  # Eq 8 in the paper
+        f_k = (
+            pred_p[0, specific_label] - pred_p[0, label_orig]
+        ).item()  # Eq 8 in the paper
 
         # Formula: perturbation = |f_k| / ||w_k|| (L2 norm)
         pert_k = abs(f_k) / np.linalg.norm(w_k.flatten())  # Eq 8 in the paper
@@ -302,27 +321,32 @@ def deepfool_specific(image, net, specific_label, num_classes=10, overshoot=0.02
 
         # Update the total perturbation
         r_i = pert * w / np.linalg.norm(w)  # Eq : 9
-        r_tot = r_tot + r_i  # Accumulate total perturbation
+        # Accumulate total perturbation
+        if region_mask is None:
+            r_tot += r_i[0]
+        else:
+            r_tot += r_i[0] * region_mask
 
         # Apply the perturbation to the image
         pert_image = image + torch.from_numpy(r_tot).to(image.device)
 
-        # Perform forward pass on the perturbed image
-        x = pert_image.requires_grad_(
-            True
-        )  # Recreate the perturbed image tensor with gradient tracking
+        # Recreate the perturbed image tensor with gradient tracking
+        x = pert_image.unsqueeze(0).requires_grad_(True)
+        # Flatten the input
         input = x.view(x.size()[-4:]).type(
             torch.cuda.FloatTensor if is_cuda else torch.FloatTensor
-        )  # Flatten the input
-        pred_p = net.forward(input)  # Forward pass through the network
-        label_pert = np.argmax(
-            pred_p.detach().cpu().numpy().flatten()
-        )  # Predicted class for the perturbed image
+        )
+
+        # Perform forward pass on the perturbed image
+        pred_p = net.forward(input)
+
+        # Predicted class for the perturbed image
+        label_pert = np.argmax(pred_p.detach().cpu().numpy().flatten())
 
         iter += 1  # Increment the iteration counter
 
     # Final perturbation scaling by (1 + overshoot)
-    r_tot = r_tot  # Scaling the perturbation vector
+    r_tot = (1 + overshoot) * r_tot  # Scaling the perturbation vector
 
     return (
         r_tot,
@@ -330,4 +354,4 @@ def deepfool_specific(image, net, specific_label, num_classes=10, overshoot=0.02
         label_orig,
         label_pert,
         pert_image,
-    )  # Return the total perturbation, iteration count, original and new labels, and perturbed image
+    )
