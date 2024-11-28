@@ -5,6 +5,7 @@ from deepfool.deepfool import deepfool, local_deepfool
 from torchvision import transforms
 from torchvision.transforms import ToPILImage, ToTensor
 import torch.nn.functional as F
+import wandb
 
 
 def proj_lp(v, xi, p):
@@ -43,6 +44,19 @@ def universal_perturbation(
     overshoot=0.02,
     max_iter_df=10,
 ):
+    # start a new wandb run to track this script
+    wandb.init(
+        # set the wandb project where this run will be logged
+        project="Universal Perturbation",
+        # track hyperparameters and run metadata
+        config={
+            "model": type(f).__name__,
+            "dataset": "STL-10",
+            "delta": delta,
+            "xi": xi,
+        },
+    )
+
     # Set model to evaluation mode
     f.eval()
 
@@ -50,12 +64,16 @@ def universal_perturbation(
     fooling_rate = 0.0
     itr_count = 0
 
+    print("Start the computation of the universal perturbation")
+    print(f"Parameters: delta={delta} ({1 - delta} fooling rate), xi={xi}")
+
     while fooling_rate < 1 - delta and itr_count < max_iter_uni:
         print("Starting pass number ", itr_count)
 
         for batch_idx, (images, _) in enumerate(dataloader):
             print(
-                f"Processing batch {batch_idx + 1} on {len(dataloader)} (batch size: {len(images)})"
+                f"\r[...] Processing batch {batch_idx + 1} on {len(dataloader)} (batch size: {len(images)})",
+                end="",
             )
             images = images.to(device)
 
@@ -118,6 +136,8 @@ def universal_perturbation(
                 )
 
         fooling_rate = np.mean(np.array(est_labels_orig) != np.array(est_labels_pert))
-        print("FOOLING RATE = ", fooling_rate)
+        print(f"\rFOOLING RATE = {fooling_rate}\033[K")
+        wandb.log({"fooling_rate": fooling_rate})
 
+    wandb.finish()
     return v

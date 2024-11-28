@@ -1,15 +1,13 @@
 import torch
 import torchvision
 import torchvision.transforms as transforms
-import matplotlib.pyplot as plt
-import numpy as np
-from universal.universal_pert import universal_perturbation
-import torchvision.models as models
 import torch.nn as nn
 import torch.optim as optim
-from collections import defaultdict
+import torch.nn.functional as F
+import numpy as np
+from universal.universal_pert import universal_perturbation
+import matplotlib.pyplot as plt
 from PIL import Image
-
 
 # Transformation pour le dataset STL-10
 transform = transforms.Compose(
@@ -33,7 +31,6 @@ train_loader = torch.utils.data.DataLoader(
     train_set,
     batch_size=100,
     shuffle=True,
-    num_workers=2,
 )
 
 # Télécharger et charger le dataset STL-10 pour les tests
@@ -44,9 +41,7 @@ test_set = torchvision.datasets.STL10(
     transform=transform,
 )
 
-test_loader = torch.utils.data.DataLoader(
-    test_set, batch_size=100, shuffle=False, num_workers=2
-)
+test_loader = torch.utils.data.DataLoader(test_set, batch_size=100, shuffle=False)
 
 # Classes du dataset STL-10
 classes = (
@@ -62,47 +57,93 @@ classes = (
     "truck",
 )
 
-# Charger le modèle ResNet-18 préentraîné (ImageNet)
-model = models.resnet18(weights=models.ResNet18_Weights.DEFAULT)
 
-# Adapter le modèle pour STL-10 (10 classes au lieu de 1000 d'Imagenet)
-model.fc = nn.Linear(model.fc.in_features, len(classes))
+# Custom CNN
+class CustomCNN(nn.Module):
+    def __init__(self):
+        super(CustomCNN, self).__init__()
+        self.conv1 = nn.Conv2d(3, 32, 3, 1)  # Convolution 1
+        self.conv2 = nn.Conv2d(32, 64, 3, 1)  # Convolution 2
+        self.fc1 = nn.Linear(64 * 22 * 22, 128)  # Fully connected 1
+        self.fc2 = nn.Linear(128, 10)  # Fully connected 2 (10 classes)
 
-# Fine-tuning
-for param in model.parameters():
-    param.requires_grad = False
+    def forward(self, x):
+        x = F.relu(self.conv1(x))
+        x = F.max_pool2d(x, 2, 2)  # Pooling 1
+        x = F.relu(self.conv2(x))
+        x = F.max_pool2d(x, 2, 2)  # Pooling 2
 
-for param in model.fc.parameters():
-    param.requires_grad = True
+        x = x.view(x.size(0), -1)  # Flatten
+        x = F.relu(self.fc1(x))  # Fully connected 1
+        x = self.fc2(x)  # Fully connected 2
+        return x
 
+
+# Vérification dynamique des dimensions
+dummy_input = torch.randn(1, 3, 96, 96)  # Exemple d'entrée
+model_test = CustomCNN()
+print(model_test(dummy_input).shape)
+
+# Déplacement du modèle sur GPU si disponible
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Device: {device}")
-model = model.to(device)
-optimizer = optim.Adam(model.fc.parameters(), lr=0.01)
+model = CustomCNN().to(device)
+
+# Définir l'optimiseur et la fonction de perte
+optimizer = optim.Adam(model.parameters(), lr=0.001)  # Taux d'apprentissage ajusté
 criterion = nn.CrossEntropyLoss()
 
-num_epochs = 20
-model.train()
+# Boucle d'entraînement
+num_epochs = 10
 for epoch in range(num_epochs):
+    model.train()  # Mode entraînement
     running_loss = 0.0
     for inputs, labels in train_loader:
         inputs, labels = inputs.to(device), labels.to(device)
 
-        optimizer.zero_grad()
+        optimizer.zero_grad()  # Réinitialisation des gradients
 
-        outputs = model(inputs)
+        outputs = model(inputs)  # Passage avant
+        loss = criterion(outputs, labels)  # Calcul de la perte
 
-        loss = criterion(outputs, labels)
-
-        loss.backward()
-
-        optimizer.step()
+        loss.backward()  # Rétropropagation
+        optimizer.step()  # Mise à jour des poids
 
         running_loss += loss.item()
 
-    print(f"Epoch [{epoch + 1}/{num_epochs}], Loss: {running_loss / len(train_loader)}")
+    # Évaluation sur le dataset de test
+    model.eval()  # Mode évaluation
+    total = 0
+    correct = 0
+    with torch.no_grad():  # Pas de calcul des gradients
+        for inputs, labels in test_loader:
+            inputs, labels = inputs.to(device), labels.to(device)
+            outputs = model(inputs)
+            _, predicted = torch.max(outputs.data, 1)
+            total += labels.size(0)
+            correct += (predicted == labels).sum().item()
 
-print("Training done")
+    # Affichage des résultats par époque
+    print(
+        f"Epoch [{epoch + 1}/{num_epochs}], Loss: {running_loss / len(train_loader):.4f}, Accuracy: {100 * correct / total:.2f}%"
+    )
+
+print("Entraînement terminé.")
+
+# Évaluation finale
+model.eval()
+correct = 0
+total = 0
+with torch.no_grad():
+    for inputs, labels in test_loader:
+        inputs, labels = inputs.to(device), labels.to(device)
+        outputs = model(inputs)
+        _, predicted = torch.max(outputs.data, 1)
+        total += labels.size(0)
+        correct += (predicted == labels).sum().item()
+
+print(f"Précision finale sur le dataset de test : {100 * correct / total:.2f}%")
+
 
 model.eval()
 correct = 0
@@ -151,7 +192,7 @@ v = universal_perturbation(
     v_size=96,
     device=device,
     delta=0.3,
-    xi=10000,
+    xi=50,
     num_classes=len(classes),
 )
 
