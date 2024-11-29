@@ -237,8 +237,8 @@ def test_dataset():
     max_pixel_values = []
     diff_norms = []
 
-    #for subdir, _, files in os.walk("data/imagenette2-320/train/mini_train_imagenette"):
-    for subdir, _, files in os.walk("data/imagenette2-320/train"):
+    #for subdir, _, files in os.walk("data/demo_deepfool/imagenette2-320/train/mini_train_imagenette"):
+    for subdir, _, files in os.walk("data/demo_deepfool/imagenette2-320/train"):
         for file in files:
             if file.lower().endswith(('png', 'jpg', 'jpeg', 'bmp', 'gif')):
                 file_path = os.path.join(subdir, file)
