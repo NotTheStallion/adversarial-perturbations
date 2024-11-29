@@ -55,15 +55,16 @@ def make_examples():
         #    im, net, max_iter=1000, region_mask=region_mask
         # )
         #DEMO DEEPFOOL SPECIFIC
-        r, loop_i, label_orig, label_pert, pert_image = local_deepfool(
-           im, net, 10, max_iter=1000
-        )
+
+        r, loop_i, label_orig, label_pert, pert_image = deepfool_specific(
+           im, net, 412, max_iter=1000)
+
 
         # PARTIE UTILISEE POUR PLOT LES VALEURS DE PIXELS ET NORMES EN FONCTION DES REGIONS CHOISIES
         # Define the regions for local DeepFool (4x4 grid)
         # height, width = im.shape[1], im.shape[2]
-        # regions = []
-        # grid_size = 4
+            # regions = []
+            # grid_size = 4
         # step_h = height // grid_size
         # step_w = width // grid_size
 
@@ -204,6 +205,165 @@ def plot_comparaison(original_images, perturbed_images, original_labels, perturb
     plt.tight_layout()
     plt.show()
 
+def iterate_images_in_tree(root_dir, process_image_callback):
+    """
+    Parcourt récursivement un dossier et charge les images pour les traiter.
+
+    :param root_dir: Répertoire racine à parcourir.
+    :param process_image_callback: Fonction à appeler pour traiter chaque image.
+    """
+    for subdir, _, files in os.walk(root_dir):
+        for file in files:
+            if file.lower().endswith(('png', 'jpg', 'jpeg', 'bmp', 'gif')):
+                file_path = os.path.join(subdir, file)
+                try:
+                    # Charger l'image
+                    with Image.open(file_path) as img:
+                        print(f"Traitement de l'image : {file_path}")
+                        process_image_callback(img)
+                except Exception as e:
+                     print(f"Erreur lors du chargement de l'image {file_path}: {e}")   
+                     
+                              
+def test_dataset():
+    # Load pretrained ResNet-34 model
+    net = models.resnet34(weights=models.ResNet34_Weights.DEFAULT)
+
+    # Switch to evaluation mode
+    net.eval()
+
+    original_labels = []
+    perturbed_labels = []
+    max_pixel_values = []
+    diff_norms = []
+
+    #for subdir, _, files in os.walk("data/demo_deepfool/imagenette2-320/train/mini_train_imagenette"):
+    for subdir, _, files in os.walk("data/demo_deepfool/imagenette2-320/train"):
+        for file in files:
+            if file.lower().endswith(('png', 'jpg', 'jpeg', 'bmp', 'gif')):
+                file_path = os.path.join(subdir, file)
+                try:
+                    # Charger l'image
+                    with Image.open(file_path) as im_orig:
+                        print(f"Traitement de l'image : {file_path}")
+                        # Mean and std used for normalization (ImageNet stats)
+                        mean = [0.485, 0.456, 0.406]
+                        std = [0.229, 0.224, 0.225]
+
+                        # Preprocessing the image: resize, crop, convert to tensor, and normalize
+                        im = transforms.Compose(
+                            [
+                                transforms.Resize(256),  # Updated from transforms.Scale
+                                transforms.CenterCrop(224),
+                                transforms.ToTensor(),
+                                transforms.Normalize(mean=mean, std=std),
+                            ]
+                        )(im_orig).cpu()  # Ensure the tensor is on the CPU
+
+                        r, loop_i, label_orig, label_pert, pert_image = local_deepfool(
+                        im, net, max_iter=1000
+                        )
+
+                        # Load class labels from file
+                        labels = (
+                            open(os.path.join("data/demo_deepfool/synset_words.txt"), "r")
+                            .read()
+                            .split("\n")
+                        )
+
+                        # Get original and perturbed class labels
+                        str_label_orig = labels[int(label_orig)].split(",")[0]  # Changed np.int to int
+                        str_label_pert = labels[int(label_pert)].split(",")[0]
+
+                        original_labels.append(str_label_orig.split()[1:])
+                        perturbed_labels.append(str_label_pert.split()[1:])
+
+                        # Function to clip tensor values between minv and maxv
+                        def clip_tensor(A, minv, maxv):
+                            A = torch.clamp(A, minv, maxv)  # Use torch.clamp for cleaner implementation
+                            return A
+
+                        # Clipping function for images (0-255 range)
+                        clip = lambda x: clip_tensor(x, 0, 255)
+
+                        # Inverse transformation to convert perturbed image back to PIL format
+                        tf = transforms.Compose(
+                            [
+                                transforms.Normalize(
+                                    mean=[0, 0, 0], std=[1 / s for s in std]
+                                ),  # Reverse normalization
+                                transforms.Normalize(
+                                    mean=[-m for m in mean], std=[1, 1, 1]
+                                ),  # Subtract mean
+                                transforms.Lambda(clip),  # Clip the values to ensure valid image range
+                                transforms.ToPILImage(),  # Convert tensor back to PIL image
+                                transforms.CenterCrop(224),  # Center crop to 224x224
+                                transforms.ToTensor(),  # Convert back to tensor
+                            ]
+                        )
+
+                except Exception as e:
+                     print(f"Erreur lors du chargement de l'image {file_path}: {e}")  
+
+        
+    return original_labels, perturbed_labels, max_pixel_values, diff_norms
+
+
+
+    
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
+import matplotlib.pyplot as plt
+from collections import Counter
+
+def display_readable_confusion_matrix(original_labels, perturbed_labels, top_n_classes=30, output_path="confusion_matrix_readable.png"):
+    """
+    Affiche une matrice de confusion lisible avec les N classes les plus fréquentes.
+    Affiche et enregistre également les valeurs de la diagonale avec les classes correspondantes.
+
+    :param original_labels: Liste des étiquettes originales.
+    :param perturbed_labels: Liste des étiquettes perturbées.
+    :param top_n_classes: Nombre maximum de classes à afficher dans la matrice.
+    :param output_path: Chemin où enregistrer l'image de la matrice de confusion.
+    """
+    # Aplatir les listes si elles contiennent des sous-listes
+    original_labels = [" ".join(label) for label in original_labels]
+    perturbed_labels = [" ".join(label) for label in perturbed_labels]
+
+    # Compter les occurrences de chaque classe pour sélectionner les plus fréquentes
+    label_counts = Counter(original_labels)
+    most_common_classes = [label for label, _ in label_counts.most_common(top_n_classes)]
+
+    filtered_original = []
+    filtered_perturbed = []
+
+    for orig, pert in zip(original_labels, perturbed_labels):
+        if orig in most_common_classes and pert in most_common_classes:
+            filtered_original.append(orig)
+            filtered_perturbed.append(pert)
+
+    # Vérifier que les longueurs sont cohérentes
+    if len(filtered_original) != len(filtered_perturbed):
+        raise ValueError("Les listes filtrées ne sont toujours pas alignées.")
+
+    # Calculer la matrice de confusion
+    cm = confusion_matrix(filtered_original, filtered_perturbed, labels=most_common_classes)
+
+    # Affichage de la matrice de confusion
+    disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=most_common_classes)
+    disp.plot(cmap=plt.cm.Blues, xticks_rotation='vertical')
+
+    plt.title(f"Matrice de confusion ({top_n_classes} classes les plus fréquentes)")
+    plt.savefig(output_path, bbox_inches="tight", dpi=300) 
+    plt.show()
+
+
+    print("\nValeurs de la diagonale (prédictions correctes) :")
+    for i, label in enumerate(most_common_classes):
+        print(f"Classe: {label}, Prédictions correctes: {cm[i, i]}")
+
+
+
+
 
 if __name__ == "__main__":
     import torch.nn as nn
@@ -220,16 +380,26 @@ if __name__ == "__main__":
     from PIL import Image
     from deepfool.deepfool import deepfool, local_deepfool, deepfool_specific
     import os
+    from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
+    import matplotlib.pyplot as plt
     
 
-    original_images, original_labels, perturbed_images, perturbed_labels, max_pixel_values, diff_norms = make_examples()
+    # original_images, original_labels, perturbed_images, perturbed_labels, max_pixel_values, diff_norms = make_examples()
 
-    plot_diff(original_images, perturbed_images)
+    # plot_diff(original_images, perturbed_images)
     
-    plot_comparaison(original_images, perturbed_images, original_labels, perturbed_labels)
+    # plot_comparaison(original_images, perturbed_images, original_labels, perturbed_labels)
 
-    print(f"shape of original_images: {original_images[0].shape}")
-    print(f"shape of perturbed_images: {perturbed_images[0].shape}")
+    # print(f"shape of original_images: {original_images[0].shape}")
+    # print(f"shape of perturbed_images: {perturbed_images[0].shape}")
+    
+    # Appel de la fonction principale
+    original_labels, perturbed_labels, max_pixel_values, diff_norms = test_dataset()
+
+
+    # Affichage et enregistrement de la heatmap
+    display_readable_confusion_matrix(original_labels, perturbed_labels, output_path="confusion_matrix_local_deepfool.png")
+
 
     
 
@@ -243,23 +413,16 @@ if __name__ == "__main__":
     #     width = 0.35  # Width of the bars
     #     ax1.bar(indices, max_vals, width=width, label='Max Pixel Value', alpha=0.7, color='b')
     #     ax1.set_xlabel('Region Index')
-    #     ax1.set_ylabel('Max Pixel Value', color='b')
-    #     ax1.tick_params(axis='y', labelcolor='b')
-        
-    #     ax2 = ax1.twinx()  # Instantiate a second axes that shares the same x-axis
-    #     ax2.bar([x + width for x in indices], norm_vals, width=width, label='Norm of Difference', alpha=0.7, color='r')
-    #     ax2.set_ylabel('Norm of Difference', color='r')
-    #     ax2.tick_params(axis='y', labelcolor='r')
-        
-    #     plt.title(f'Max Pixel Value and Norm of Difference for Image {i+1}')
-    #     fig.tight_layout()
-    #     plt.show()
-
+    #     ax1.set_ylabel('Max Pixel Value', color='b')"data/demo_deepfool/test_img{i}.jpg")
     # # Print max pixel values and norms of differences
     # for i, (max_vals, norm_vals) in enumerate(zip(max_pixel_values, diff_norms)):
     #     for j, (max_val, norm_val) in enumerate(zip(max_vals, norm_vals)):
     #         print(f"Image {i+1}, Region {j+1}: Max Pixel Value = {max_val}, Norm of Difference = {norm_val}")
             
-            
+    
+    
+
+
+
 
 
