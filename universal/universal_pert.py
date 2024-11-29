@@ -5,7 +5,15 @@ from deepfool.deepfool import deepfool, local_deepfool
 from torchvision import transforms
 from torchvision.transforms import ToPILImage, ToTensor
 import torch.nn.functional as F
-import wandb
+
+try:
+    import wandb
+
+    wandb_enabled = True
+except ImportError:
+    wandb_enabled = False
+
+wandb_enabled = False
 
 
 def proj_lp(v, xi, p):
@@ -42,20 +50,21 @@ def universal_perturbation(
     p=float("inf"),
     num_classes=10,
     overshoot=0.02,
-    max_iter_df=10,
+    max_iter_df=100,
 ):
-    # start a new wandb run to track this script
-    wandb.init(
-        # set the wandb project where this run will be logged
-        project="Universal Perturbation",
-        # track hyperparameters and run metadata
-        config={
-            "model": type(f).__name__,
-            "dataset": "STL-10",
-            "delta": delta,
-            "xi": xi,
-        },
-    )
+    if wandb_enabled:
+        # start a new wandb run to track this script
+        wandb.init(
+            # set the wandb project where this run will be logged
+            project="Universal Perturbation",
+            # track hyperparameters and run metadata
+            config={
+                "model": type(f).__name__,
+                "dataset": "STL-10",
+                "delta": delta,
+                "xi": xi,
+            },
+        )
 
     # Set model to evaluation mode
     f.eval()
@@ -80,7 +89,6 @@ def universal_perturbation(
             for img in images:
                 # Apply the resize transformation before passing to the model
                 img_resized = resize_tensor(img, v_size).to(device)
-
                 img_resized = img_resized.unsqueeze(0)
 
                 v = F.interpolate(
@@ -137,7 +145,9 @@ def universal_perturbation(
 
         fooling_rate = np.mean(np.array(est_labels_orig) != np.array(est_labels_pert))
         print(f"\rFOOLING RATE = {fooling_rate}\033[K")
-        wandb.log({"fooling_rate": fooling_rate})
+        if wandb_enabled:
+            wandb.log({"fooling_rate": fooling_rate})
 
-    wandb.finish()
+    if wandb_enabled:
+        wandb.finish()
     return v

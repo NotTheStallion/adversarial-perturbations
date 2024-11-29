@@ -10,13 +10,16 @@ import torch.optim as optim
 from collections import defaultdict
 from PIL import Image
 
+# Mean and std deviation of the dataset ImageNet (ResNet-18 pre-trained model)
+mean = [0.485, 0.456, 0.406]
+std = [0.229, 0.224, 0.225]
 
 # Transformation pour le dataset STL-10
 transform = transforms.Compose(
     [
         transforms.Resize((96, 96)),
         transforms.ToTensor(),
-        transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+        transforms.Normalize(mean=mean, std=std),
     ]
 )
 
@@ -151,7 +154,7 @@ v = universal_perturbation(
     v_size=96,
     device=device,
     delta=0.3,
-    xi=10000,
+    xi=5 * 1e4,
     num_classes=len(classes),
 )
 

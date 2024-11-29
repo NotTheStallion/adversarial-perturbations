@@ -82,7 +82,6 @@ class CustomCNN(nn.Module):
 # Vérification dynamique des dimensions
 dummy_input = torch.randn(1, 3, 96, 96)  # Exemple d'entrée
 model_test = CustomCNN()
-print(model_test(dummy_input).shape)
 
 # Déplacement du modèle sur GPU si disponible
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -191,8 +190,8 @@ v = universal_perturbation(
     model,
     v_size=96,
     device=device,
-    delta=0.3,
-    xi=50,
+    delta=0.2,
+    xi=5 * 1e4,
     num_classes=len(classes),
 )
 
