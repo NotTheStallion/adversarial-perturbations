@@ -14,10 +14,12 @@ from PIL import Image
 mean = [0.485, 0.456, 0.406]
 std = [0.229, 0.224, 0.225]
 
+img_size = 224
+
 # Transformation pour le dataset STL-10
 transform = transforms.Compose(
     [
-        transforms.Resize((96, 96)),
+        transforms.Resize((img_size, img_size)),
         transforms.ToTensor(),
         transforms.Normalize(mean=mean, std=std),
     ]
@@ -36,7 +38,6 @@ train_loader = torch.utils.data.DataLoader(
     train_set,
     batch_size=100,
     shuffle=True,
-    num_workers=2,
 )
 
 # Télécharger et charger le dataset STL-10 pour les tests
@@ -48,7 +49,7 @@ test_set = torchvision.datasets.STL10(
 )
 
 test_loader = torch.utils.data.DataLoader(
-    test_set, batch_size=100, shuffle=False, num_workers=2
+    test_set, batch_size=100, shuffle=False
 )
 
 # Classes du dataset STL-10
@@ -135,7 +136,7 @@ def imshow(img, label=""):
     plt.axis("off")
 
 
-def load_image(image_path, size=(96, 96)):
+def load_image(image_path, size=(img_size, img_size)):
     transform = transforms.Compose(
         [
             transforms.Resize(size),
@@ -151,9 +152,9 @@ def load_image(image_path, size=(96, 96)):
 v = universal_perturbation(
     train_loader,
     model,
-    v_size=96,
+    v_size=img_size,
     device=device,
-    delta=0.3,
+    delta=0.8,
     xi=5 * 1e4,
     num_classes=len(classes),
 )
