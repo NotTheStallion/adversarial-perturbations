@@ -191,9 +191,12 @@ v = universal_perturbation(
     v_size=96,
     device=device,
     delta=0.2,
-    xi=5 * 1e4,
+    xi=0.5,
+    p=float("inf"), #float("inf") or 2
     num_classes=len(classes),
 )
+
+print(f"Perturbation universelle générée: norme L2 = {torch.norm(v).item()}, norme L∞ = {torch.max(torch.abs(v)).item()}")
 
 # Sauvegarde de la perturbation universelle
 torch.save(v, "universal_perturbation_stl10_resnet18.pth")
