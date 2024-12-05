@@ -355,3 +355,100 @@ def deepfool_specific(
         label_pert,
         pert_image,
     )
+
+
+
+def regular_local_deepfool(
+    image,
+    net,
+    num_classes=10,
+    overshoot=0.02,
+    max_iter=50,
+    region_mask=None,
+    decay_factor=2,
+    verbose=True,
+):
+    """
+    region_mask : A matrix that contains 1 where you want the perturbation to be applied and 0 elsewhere. By default the perturbation is applied to the entire image.
+    """
+
+    is_cuda = torch.cuda.is_available()
+    if is_cuda:
+        image = image.cuda()
+        net = net.cuda()
+
+    input_shape = image.cpu().numpy().shape
+
+    f_image = (
+        net.forward(image.unsqueeze(0).requires_grad_(True))
+        .detach()
+        .cpu()
+        .numpy()
+        .flatten()
+    )
+
+    I = np.argsort(f_image)[::-1][:num_classes]
+    label_orig = I[0]
+
+    pert_image = copy.deepcopy(image)
+    w = np.zeros(input_shape)
+    r_tot = np.zeros(input_shape)
+
+    iter = 0
+    x = pert_image.unsqueeze(0).requires_grad_(True)
+    pred_p = net.forward(x)
+    label_pert = label_orig
+
+    while label_pert == label_orig and iter < max_iter:
+        pert = np.inf
+
+        pred_p[0, label_orig].backward(retain_graph=True)
+        grad_origin = x.grad.detach().cpu().numpy().copy()
+
+        for k in range(1, num_classes):
+            x.grad.zero_()
+
+            pred_p[0, I[k]].backward(retain_graph=True)
+            cur_grad = x.grad.detach().cpu().numpy().copy()
+
+            w_k = np.zeros_like(cur_grad)
+
+            if region_mask is None:
+                w_k[0] = cur_grad[0] - grad_origin[0]
+            else:
+                w_k[0] = (cur_grad[0] - grad_origin[0]) * region_mask
+
+            f_k = (pred_p[0, I[k]] - pred_p[0, label_orig]).item()  # Eq 8 in the paper
+            pert_k = abs(f_k) / np.linalg.norm(w_k.flatten())  # Eq 8 in the paper
+
+            if pert_k < pert + decay_factor * np.linalg.norm(w_k.flatten(), np.inf):
+                
+                pert = pert_k
+                w = w_k
+
+        r_i = pert * w / np.linalg.norm(w)  # Eq : 9
+        if region_mask is None:
+            r_tot += r_i[0]
+        else:
+            r_tot += r_i[0] * region_mask
+
+        pert_image = image + torch.from_numpy(r_tot).to(image.device)
+
+        x = pert_image.unsqueeze(0).requires_grad_(True)
+        input = x.view(x.size()[-4:]).type(
+            torch.cuda.FloatTensor if is_cuda else torch.FloatTensor
+        )
+
+        pred_p = net.forward(input)
+        label_pert = np.argmax(pred_p.detach().cpu().numpy().flatten())
+
+        iter += 1
+        if iter % 100 == 0 and verbose:
+            print(f"Iteration: {iter}, label_pert: {label_pert}/{label_orig}")
+
+    # Scale final perturbation
+    r_tot = (1 + overshoot) * r_tot
+
+    if verbose:
+        print(f"original label: {label_orig}, perturbed label: {label_pert}")
+    return r_tot, iter, label_orig, label_pert, pert_image
