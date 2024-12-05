@@ -132,7 +132,7 @@ def local_deepfool(
     overshoot=0.02,
     max_iter=50,
     region_mask=None,
-    verbose=True,
+    verbose=False,
 ):
     """
     region_mask : A matrix that contains 1 where you want the perturbation to be applied and 0 elsewhere. By default the perturbation is applied to the entire image.
