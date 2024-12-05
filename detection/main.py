@@ -5,7 +5,7 @@ import gradio as gr
 import torch
 
 # Load YOLOv5n6 model
-model = YOLO('yolov5n6.pt')
+model = YOLO('yolov5n6u.pt')
 
 # Set the confidence threshold and IOU
 model.conf = 0.25  # confidence threshold
@@ -39,7 +39,8 @@ def detect_and_draw(frame):
     return frame
 
 # Define your stream URL
-stream_url = "https://edge01.london.nginx.hdontap.com/hosb5/ng_showcase-coke_bottle-street_fixed.stream/chunklist_w464099566.m3u8"
+#stream_url = "https://edge01.london.nginx.hdontap.com/hosb5/ng_showcase-coke_bottle-street_fixed.stream/chunklist_w464099566.m3u8"
+stream_url = "pete.mp4" 
 
 def process_stream():
     cap = cv2.VideoCapture(stream_url)
