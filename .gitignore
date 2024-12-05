@@ -167,3 +167,9 @@ stl10*
 
 # Removing YOLO detection weights
 *.pt
+
+#Removing SAM weights
+*pth
+
+#Removing Dataset imagenette
+imagenette2-320/
