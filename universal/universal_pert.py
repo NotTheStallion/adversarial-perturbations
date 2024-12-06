@@ -29,6 +29,7 @@ def proj_lp(v, xi, p):
 
 def universal_perturbation(
     dataloader,
+    testloader,
     f,
     v_size,
     device,
@@ -105,7 +106,7 @@ def universal_perturbation(
         est_labels_pert = []
 
         with torch.no_grad():
-            for images, _ in dataloader:
+            for images, _ in testloader:
                 images = (
                     F.interpolate(
                         images,
@@ -125,8 +126,6 @@ def universal_perturbation(
 
         fooling_rate = np.mean(np.array(est_labels_orig) != np.array(est_labels_pert))
         print(f"\rFOOLING RATE = {fooling_rate}\033[K")
-        if wandb_enabled:
-            wandb.log({"fooling_rate": fooling_rate})
 
     if wandb_enabled:
         wandb.finish()

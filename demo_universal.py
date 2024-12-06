@@ -85,7 +85,7 @@ model = model.to(device)
 optimizer = optim.Adam(model.fc.parameters(), lr=0.01)
 criterion = nn.CrossEntropyLoss()
 
-num_epochs = 20
+num_epochs = 10
 model.train()
 for epoch in range(num_epochs):
     running_loss = 0.0
@@ -151,6 +151,7 @@ def load_image(image_path, size=(img_size, img_size)):
 # Génération de la perturbation universelle
 v = universal_perturbation(
     train_loader,
+    test_loader,
     model,
     v_size=img_size,
     device=device,
