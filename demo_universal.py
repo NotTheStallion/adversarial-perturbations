@@ -48,9 +48,7 @@ test_set = torchvision.datasets.STL10(
     transform=transform,
 )
 
-test_loader = torch.utils.data.DataLoader(
-    test_set, batch_size=100, shuffle=False
-)
+test_loader = torch.utils.data.DataLoader(test_set, batch_size=100, shuffle=False)
 
 # Classes du dataset STL-10
 classes = (
@@ -85,7 +83,7 @@ model = model.to(device)
 optimizer = optim.Adam(model.fc.parameters(), lr=0.01)
 criterion = nn.CrossEntropyLoss()
 
-num_epochs = 20
+num_epochs = 10
 model.train()
 for epoch in range(num_epochs):
     running_loss = 0.0
@@ -151,12 +149,14 @@ def load_image(image_path, size=(img_size, img_size)):
 # Génération de la perturbation universelle
 v = universal_perturbation(
     train_loader,
+    test_loader,
     model,
     v_size=img_size,
     device=device,
     delta=0.8,
     xi=5 * 1e4,
     num_classes=len(classes),
+    p=2,
 )
 
 # Sauvegarde de la perturbation universelle
