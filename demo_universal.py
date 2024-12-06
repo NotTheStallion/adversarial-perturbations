@@ -159,6 +159,9 @@ v = universal_perturbation(
     p=2,
 )
 
+print("L inf", torch.norm(v, p=float("inf")).item())
+print("L2", torch.norm(v, p=2).item())
+
 # Sauvegarde de la perturbation universelle
 torch.save(v, "universal_perturbation_stl10_resnet18.pth")
 
