@@ -48,9 +48,7 @@ test_set = torchvision.datasets.STL10(
     transform=transform,
 )
 
-test_loader = torch.utils.data.DataLoader(
-    test_set, batch_size=100, shuffle=False
-)
+test_loader = torch.utils.data.DataLoader(test_set, batch_size=100, shuffle=False)
 
 # Classes du dataset STL-10
 classes = (
@@ -158,6 +156,7 @@ v = universal_perturbation(
     delta=0.8,
     xi=5 * 1e4,
     num_classes=len(classes),
+    p=2,
 )
 
 # Sauvegarde de la perturbation universelle

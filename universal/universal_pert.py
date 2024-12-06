@@ -27,6 +27,7 @@ def proj_lp(v, xi, p):
         )
     return v
 
+
 def universal_perturbation(
     dataloader,
     testloader,
@@ -63,7 +64,7 @@ def universal_perturbation(
     itr_count = 0
 
     print("Start the computation of the universal perturbation")
-    print(f"Parameters: delta={delta} ({1 - delta} fooling rate), xi={xi}")
+    print(f"Parameters: delta={delta} ({1 - delta} fooling rate), xi={xi}, p={p}")
 
     while fooling_rate < 1 - delta and itr_count < max_iter_uni:
         print("Starting pass number ", itr_count)
@@ -76,9 +77,7 @@ def universal_perturbation(
             images = images.to(device)
 
             for img in images:
-
                 v = v.to(device)
-
 
                 img = img.unsqueeze(0)
 

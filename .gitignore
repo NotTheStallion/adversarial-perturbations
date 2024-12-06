@@ -165,4 +165,5 @@ cython_debug/
 cifar-10*
 stl10*
 imagenette2-320*
+*.pth
     
