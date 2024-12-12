@@ -53,8 +53,8 @@ EPOCH = 200
 LR = 0.01
 
 
-train_loader = DataLoader(train_dataset, shuffle=True, batch_size=Batch, num_workers=5)
-test_loader = DataLoader(test_dataset, shuffle=False, batch_size=Batch, num_workers=5)
+train_loader = DataLoader(train_dataset, shuffle=True, batch_size=Batch)
+test_loader = DataLoader(test_dataset, shuffle=False, batch_size=Batch)
 
 
 
@@ -146,4 +146,5 @@ criterion = torch.nn.CrossEntropyLoss()
 params_1x = [param for name, param in net.named_parameters() if 'fc' not in str(name)]
 optimizer = torch.optim.Adam([{'params':params_1x}, {'params': net.resnet.fc.parameters(), 'lr': lr*10}], lr=lr, weight_decay=weight_decay)
 
-net = train(net, train_loader, test_loader, criterion, optimizer, None, epochs, device)
+# net = train(net, train_loader, test_loader, criterion, optimizer, None, epochs, device)
+net = train(net, train_loader, None, criterion, optimizer, None, epochs, device)
