@@ -4,6 +4,7 @@ from PIL import Image
 from torchvision import transforms
 from torchvision import models
 import os
+from tqdm import tqdm
 
 
 def diff(original_images, perturbed_images):
@@ -171,3 +172,18 @@ def make_examples(func, xargs):
         perturbed_labels,
         perturbed_images_norm
     )
+
+
+def perturb_set(perturb_func, data_set_loader, model):
+    perturbed_images = []
+    gt_labels = []
+    
+    for image, label in tqdm(data_set_loader, desc="Perturbing images"):
+        r, loop_i, label_orig, label_pert, pert_image = perturb_func(image, model, num_classes=10, overshoot=0.02, max_iter=50, region_mask=None, verbose=False)
+        perturbed_images.append(pert_image)
+        gt_labels.append([label, label_orig, label_pert])
+        # print(f"Original label: {label_orig}, Perturbed label: {label_pert}")
+    
+    perturbed_dataset = torch.utils.data.TensorDataset(torch.stack(perturbed_images), torch.tensor(gt_labels))
+    # print(f"shape of perturbed dataset: {perturbed_dataset.tensors[1].shape}")
+    return perturbed_dataset
