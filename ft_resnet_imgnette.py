@@ -131,11 +131,15 @@ def train(net, train_dataloader, valid_dataloader, criterion, optimizer, schedul
     
     end = time.time()
     print(f'Total training time: {end-start:.1f} seconds')
+    
+    # save model weights
+    torch.save(net.state_dict(), 'resnet34_imagenette.pth')
+    
     return net
 
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
-lr, weight_decay, epochs = 1e-5, 5e-4, 20
+lr, weight_decay, epochs = 1e-5, 5e-4, 5
 
 net = Net().to(device)
 
@@ -147,4 +151,4 @@ params_1x = [param for name, param in net.named_parameters() if 'fc' not in str(
 optimizer = torch.optim.Adam([{'params':params_1x}, {'params': net.resnet.fc.parameters(), 'lr': lr*10}], lr=lr, weight_decay=weight_decay)
 
 # net = train(net, train_loader, test_loader, criterion, optimizer, None, epochs, device)
-net = train(net, train_loader, None, criterion, optimizer, None, epochs, device)
+net = train(net, train_loader, test_loader, criterion, optimizer, None, epochs, device)
