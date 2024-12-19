@@ -174,12 +174,12 @@ def make_examples(func, xargs):
     )
 
 
-def perturb_set(perturb_func, data_set_loader, model):
+def perturb_set(perturb_func, data_set_loader, model, parm_dict):
     perturbed_images = []
     gt_labels = []
     
     for image, label in tqdm(data_set_loader, desc="Perturbing images"):
-        r, loop_i, label_orig, label_pert, pert_image = perturb_func(image, model, num_classes=10, overshoot=0.02, max_iter=50, region_mask=None, verbose=False)
+        r, loop_i, label_orig, label_pert, pert_image = perturb_func(image, model, **parm_dict)
         perturbed_images.append(pert_image)
         gt_labels.append([label, label_orig, label_pert])
         # print(f"Original label: {label_orig}, Perturbed label: {label_pert}")
