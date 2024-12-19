@@ -8,7 +8,7 @@ from tqdm import tqdm
 
 
 def diff(original_images, perturbed_images):
-    difference_images = []
+    diff_tensors = []
     for orig, pert in zip(original_images, perturbed_images):
         orig_tensor = (
             transforms.ToTensor()(orig) if isinstance(orig, Image.Image) else orig
@@ -17,9 +17,9 @@ def diff(original_images, perturbed_images):
             transforms.ToTensor()(pert) if isinstance(pert, Image.Image) else pert
         )
         diff_tensor = torch.abs(orig_tensor - pert_tensor)
-        diff_image = transforms.ToPILImage()(diff_tensor)
-        difference_images.append(diff_image)
-    return difference_images
+        diff_tensors.append(diff_tensor)
+    diff_tensors = torch.stack(diff_tensors)
+    return diff_tensors
 
 
 def plot_diff(original_images_norm, perturbed_images_norm):
@@ -30,7 +30,7 @@ def plot_diff(original_images_norm, perturbed_images_norm):
     difference_images = diff(original_images_norm, perturbed_images_norm)
     fig_diff, ax_diff = plt.subplots(1, len(difference_images), figsize=(20, 5))
     for col in range(len(difference_images)):
-        diff_im = transforms.ToTensor()(difference_images[col])
+        diff_im = difference_images[col]
         diff_gray = torch.mean(diff_im, dim=0)
         im = ax_diff[col].imshow(diff_gray, cmap="gray")
         ax_diff[col].set_title(f"Difference {col+1}")
@@ -182,8 +182,6 @@ def perturb_set(perturb_func, data_set_loader, model, parm_dict):
         r, loop_i, label_orig, label_pert, pert_image = perturb_func(image, model, **parm_dict)
         perturbed_images.append(pert_image)
         gt_labels.append([label, label_orig, label_pert])
-        # print(f"Original label: {label_orig}, Perturbed label: {label_pert}")
     
     perturbed_dataset = torch.utils.data.TensorDataset(torch.stack(perturbed_images), torch.tensor(gt_labels))
-    # print(f"shape of perturbed dataset: {perturbed_dataset.tensors[1].shape}")
     return perturbed_dataset
