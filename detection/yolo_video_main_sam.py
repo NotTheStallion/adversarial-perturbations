@@ -12,7 +12,7 @@ OUTPUT_MASK_DIR = "masks"
 os.makedirs(OUTPUT_MASK_DIR, exist_ok=True)
 
 # YOLO Model Configuration
-model = YOLO('yolov5n6u.pt')
+model = YOLO('yolo11s-seg.pt')
 model.conf = 0.25
 model.iou = 0.45
 model.agnostic = False

@@ -44,7 +44,7 @@ def detect_and_draw_on_image(image_path):
     return frame
 
 # Chemin de l'image
-image_path = "image.jpg"
+image_path = "/home/cbanide/ProjetSemestriel_new/adversarial-perturbations/detection/image.jpg"
 
 # Exécuter la détection sur l'image spécifiée
 if __name__ == "__main__":

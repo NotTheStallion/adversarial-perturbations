@@ -43,7 +43,7 @@ def detect_and_draw_on_image(image_path):
     return frame
 
 # Hardcoded image path
-image_path = "img.jpg"
+image_path = "im.jpg"
 
 # Run detection on the specified image
 if __name__ == "__main__":

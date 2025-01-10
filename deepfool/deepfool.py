@@ -212,4 +212,3 @@ def local_deepfool(
     if verbose:
         print(f"original label: {label_orig}, perturbed label: {label_pert}")
     return r_tot, iter, label_orig, label_pert, pert_image
-
