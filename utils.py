@@ -5,6 +5,35 @@ from torchvision import transforms
 from torchvision import models
 import os
 from tqdm import tqdm
+import wandb
+
+import time
+import psutil
+from PIL import Image
+import torch
+from torchvision import transforms
+
+from codecarbon import EmissionsTracker
+
+
+def energy_profiler(func):
+    def wrapper(*args, **kwargs):
+        tracker = EmissionsTracker()
+        
+        tracker.start()
+
+        result = func(*args, **kwargs)
+        
+        emissions: float = tracker.stop()
+        print('-----------------------------------------------------')
+        print('Total CPU energy consumption CodeCarbon (Process): ' + str(tracker._total_cpu_energy.kWh*1000) + ' Wh')
+        print('Total RAM energy consumption CodeCarbon (Process): ' + str(tracker._total_ram_energy.kWh*1000) + ' Wh')
+        print('Total GPU energy consumption CodeCarbon (Process): ' + str(tracker._total_gpu_energy.kWh*1000) + ' Wh')
+        print('Total Energy consumption CodeCarbon (Process): ' + str(tracker._total_energy.kWh*1000) + ' Wh')
+        print('Emissions by CodeCarbon (Process): '+ str(emissions*1000) + ' gCO2e')
+        return result
+    return wrapper
+
 
 
 def diff(original_images, perturbed_images):
@@ -185,3 +214,12 @@ def perturb_set(perturb_func, data_set_loader, model, parm_dict):
     
     perturbed_dataset = torch.utils.data.TensorDataset(torch.stack(perturbed_images), torch.tensor(gt_labels))
     return perturbed_dataset
+
+
+
+if __name__ == "__main__":
+    # Dummy example with random tensors
+    original_images = [torch.rand(3, 64, 64) for _ in range(10)]
+    perturbed_images = [torch.rand(3, 64, 64) for _ in range(10)]
+    
+    diff_tensors = diff(original_images, perturbed_images)
