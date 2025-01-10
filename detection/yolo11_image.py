@@ -18,7 +18,7 @@ def detect_and_draw_on_image(image_path):
     results = model(frame)
     for result in results:
         result.show()
-        result.save("oui.png")
+        result.save("segmented_person.png")
 
     # Créer une copie en basse résolution pour la détection
     low_res_frame = cv2.resize(frame, LOW_RES)
