@@ -19,21 +19,37 @@ from codecarbon import EmissionsTracker
 def energy_profiler(func):
     def wrapper(*args, **kwargs):
         tracker = EmissionsTracker()
-        
+
         tracker.start()
 
         result = func(*args, **kwargs)
-        
-        emissions: float = tracker.stop()
-        print('-----------------------------------------------------')
-        print('Total CPU energy consumption CodeCarbon (Process): ' + str(tracker._total_cpu_energy.kWh*1000) + ' Wh')
-        print('Total RAM energy consumption CodeCarbon (Process): ' + str(tracker._total_ram_energy.kWh*1000) + ' Wh')
-        print('Total GPU energy consumption CodeCarbon (Process): ' + str(tracker._total_gpu_energy.kWh*1000) + ' Wh')
-        print('Total Energy consumption CodeCarbon (Process): ' + str(tracker._total_energy.kWh*1000) + ' Wh')
-        print('Emissions by CodeCarbon (Process): '+ str(emissions*1000) + ' gCO2e')
-        return result
-    return wrapper
 
+        emissions: float = tracker.stop()
+        print("-----------------------------------------------------")
+        print(
+            "Total CPU energy consumption CodeCarbon (Process): "
+            + str(tracker._total_cpu_energy.kWh * 1000)
+            + " Wh"
+        )
+        print(
+            "Total RAM energy consumption CodeCarbon (Process): "
+            + str(tracker._total_ram_energy.kWh * 1000)
+            + " Wh"
+        )
+        print(
+            "Total GPU energy consumption CodeCarbon (Process): "
+            + str(tracker._total_gpu_energy.kWh * 1000)
+            + " Wh"
+        )
+        print(
+            "Total Energy consumption CodeCarbon (Process): "
+            + str(tracker._total_energy.kWh * 1000)
+            + " Wh"
+        )
+        print("Emissions by CodeCarbon (Process): " + str(emissions * 1000) + " gCO2e")
+        return result
+
+    return wrapper
 
 
 def diff(original_images, perturbed_images):
@@ -52,9 +68,9 @@ def diff(original_images, perturbed_images):
 
 
 def plot_diff(original_images_norm, perturbed_images_norm):
-    assert (
-        len(original_images_norm) == len(perturbed_images_norm)
-    ), f"Number of original ({len(original_images_norm)}) and perturbed ({len(perturbed_images_norm)}) images must be the same"
+    assert len(original_images_norm) == len(perturbed_images_norm), (
+        f"Number of original ({len(original_images_norm)}) and perturbed ({len(perturbed_images_norm)}) images must be the same"
+    )
 
     difference_images = diff(original_images_norm, perturbed_images_norm)
     fig_diff, ax_diff = plt.subplots(1, len(difference_images), figsize=(20, 5))
@@ -62,7 +78,7 @@ def plot_diff(original_images_norm, perturbed_images_norm):
         diff_im = difference_images[col]
         diff_gray = torch.mean(diff_im, dim=0)
         im = ax_diff[col].imshow(diff_gray, cmap="gray")
-        ax_diff[col].set_title(f"Difference {col+1}")
+        ax_diff[col].set_title(f"Difference {col + 1}")
         ax_diff[col].axis("off")
         fig_diff.colorbar(im, ax=ax_diff[col], orientation="vertical")
     plt.tight_layout()
@@ -77,18 +93,20 @@ def plot_comparaison(
         == len(perturbed_images)
         == len(original_labels)
         == len(perturbed_labels)
-    ), f"Lengths are not equal: original_images={len(original_images)}, perturbed_images={len(perturbed_images)}, original_labels={len(original_labels)}, perturbed_labels={len(perturbed_labels)}"
+    ), (
+        f"Lengths are not equal: original_images={len(original_images)}, perturbed_images={len(perturbed_images)}, original_labels={len(original_labels)}, perturbed_labels={len(perturbed_labels)}"
+    )
 
     fig, ax = plt.subplots(2, len(original_images), figsize=(18, 7))
     for col in range(len(original_images)):
         ax[0][col].imshow(transforms.ToPILImage()(original_images[col]))
         ax[0][col].set_title(f"Original: {original_labels[col]}", fontsize=10)
         ax[0][col].axis("off")
-        
+
         ax[1][col].imshow(transforms.ToPILImage()(perturbed_images[col]))
         ax[1][col].set_title(f"Perturbed: {perturbed_labels[col]}", fontsize=10)
         ax[1][col].axis("off")
-    
+
     fig.suptitle("DeepFool Attack on ResNet34", fontsize=16)
     plt.subplots_adjust(top=0.85, hspace=0.3)
     plt.tight_layout()
@@ -126,7 +144,7 @@ def make_examples(func, xargs):
                 ]
             )(im_orig)
         )
-        
+
         original_images_norm.append(
             transforms.Compose(
                 [
@@ -199,27 +217,30 @@ def make_examples(func, xargs):
         original_images_norm,
         perturbed_images,
         perturbed_labels,
-        perturbed_images_norm
+        perturbed_images_norm,
     )
 
 
 def perturb_set(perturb_func, data_set_loader, model, parm_dict):
     perturbed_images = []
     gt_labels = []
-    
+
     for image, label in tqdm(data_set_loader, desc="Perturbing images"):
-        r, loop_i, label_orig, label_pert, pert_image = perturb_func(image, model, **parm_dict)
+        r, loop_i, label_orig, label_pert, pert_image = perturb_func(
+            image, model, **parm_dict
+        )
         perturbed_images.append(pert_image)
         gt_labels.append([label, label_orig, label_pert])
-    
-    perturbed_dataset = torch.utils.data.TensorDataset(torch.stack(perturbed_images), torch.tensor(gt_labels))
-    return perturbed_dataset
 
+    perturbed_dataset = torch.utils.data.TensorDataset(
+        torch.stack(perturbed_images), torch.tensor(gt_labels)
+    )
+    return perturbed_dataset
 
 
 if __name__ == "__main__":
     # Dummy example with random tensors
     original_images = [torch.rand(3, 64, 64) for _ in range(10)]
     perturbed_images = [torch.rand(3, 64, 64) for _ in range(10)]
-    
+
     diff_tensors = diff(original_images, perturbed_images)
