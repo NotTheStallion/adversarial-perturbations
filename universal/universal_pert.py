@@ -75,17 +75,6 @@ def universal_perturbation(
             images = images.to(device)
 
             for img in images:
-                img_resized = resize_tensor(img, v_size).to(device)
-
-                img_resized = img_resized.unsqueeze(0)
-
-                v = F.interpolate(
-                    v.unsqueeze(0),
-                    size=(v_size, v_size),
-                    mode="bilinear",
-                    align_corners=False,
-                ).squeeze(0)
-
                 v = v.to(device)
 
                 img = img.unsqueeze(0)
