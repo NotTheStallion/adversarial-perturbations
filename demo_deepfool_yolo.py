@@ -1,8 +1,6 @@
 def make_examples():
-    # Load pretrained ResNet-34 model
     net = models.resnet34(weights=models.ResNet34_Weights.DEFAULT)
 
-    # Switch to evaluation mode
     net.eval()
 
     original_images = []
@@ -13,44 +11,36 @@ def make_examples():
     diff_norms = []
 
     for i in range(1, 6):
-        # Load image
         im_orig = Image.open(f"data/demo_deepfool/test_img{i}.jpg")
 
-        # Mean and std used for normalization (ImageNet stats)
         mean = [0.485, 0.456, 0.406]
         std = [0.229, 0.224, 0.225]
 
         original_images.append(
             transforms.Compose(
                 [
-                    transforms.Resize(256),  # Updated from transforms.Scale
+                    transforms.Resize(256),  
                     transforms.CenterCrop(224),
                     transforms.ToTensor(),
                 ]
             )(im_orig)
         )
 
-        # Preprocessing the image: resize, crop, convert to tensor, and normalize
         im = transforms.Compose(
             [
-                transforms.Resize(256),  # Updated from transforms.Scale
+                transforms.Resize(256), 
                 transforms.CenterCrop(224),
                 transforms.ToTensor(),
                 transforms.Normalize(mean=mean, std=std),
             ]
-        )(im_orig).cpu()  # Ensure the tensor is on the CPU
+        )(im_orig).cpu()  
         
-        # Creating the region mask
         input_shape = im.cpu().numpy().shape
         print(input_shape[1:])
         region_mask = np.zeros(input_shape[1:], dtype=np.int32)
         region_mask[50:150, 50:150] = 1
 
-        # plt.imshow((region_mask))
-        # plt.imshow(region_mask, cmap='gray')
-        # plt.show()
-
-        # Run DeepFool attack
+       
         r, loop_i, label_orig, label_pert, pert_image = local_deepfool(
             im, net, max_iter=1000, region_mask=region_mask
         )
@@ -100,16 +90,14 @@ def make_examples():
             .split("\n")
         )
 
-        # Get original and perturbed class labels
-        str_label_orig = labels[int(label_orig)].split(",")[0]  # Changed np.int to int
+        str_label_orig = labels[int(label_orig)].split(",")[0]  
         str_label_pert = labels[int(label_pert)].split(",")[0]
 
         original_labels.append(str_label_orig.split()[1:])
         perturbed_labels.append(str_label_pert.split()[1:])
 
-        # Function to clip tensor values between minv and maxv
         def clip_tensor(A, minv, maxv):
-            A = torch.clamp(A, minv, maxv)  # Use torch.clamp for cleaner implementation
+            A = torch.clamp(A, minv, maxv)  
             return A
 
         # Clipping function for images (0-255 range)
@@ -139,11 +127,9 @@ def make_examples():
 
 
 def diff(original_images, perturbed_images):
-    # Calculate and display the difference between original and perturbed images
     difference_images = []
 
     for orig, pert in zip(original_images, perturbed_images):
-        # Convert images to tensors
         if isinstance(orig, Image.Image):
             orig_tensor = transforms.ToTensor()(orig)
         else:
@@ -153,10 +139,8 @@ def diff(original_images, perturbed_images):
         else:
             pert_tensor = pert
 
-        # Calculate the difference
         diff_tensor = torch.abs(orig_tensor - pert_tensor)
 
-        # Convert the difference tensor back to a PIL image
         diff_image = transforms.ToPILImage()(diff_tensor)
         difference_images.append(diff_image)
         
@@ -166,10 +150,8 @@ def diff(original_images, perturbed_images):
 def plot_diff(original_images, perturbed_images):
     difference_images = diff(original_images, perturbed_images)
 
-    # Display the difference images with colorbars
     fig_diff, ax_diff = plt.subplots(1, 5, figsize=(20, 5))
     for col in range(5):
-        # Convert the difference tensor to grayscale for visualization
         diff_im = transforms.ToTensor()(difference_images[col])
         diff_gray = torch.mean(diff_im, dim=0)  # Convert to grayscale by averaging channels
         im = ax_diff[col].imshow(diff_gray, cmap="gray")
@@ -211,7 +193,7 @@ if __name__ == "__main__":
     import math
     import torchvision.models as models
     from PIL import Image
-    from deepfool.deepfool import deepfool, local_deepfool
+    from deepfool.deepfool_yolo import deepfool, local_deepfool
     import os
     
 
