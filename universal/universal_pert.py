@@ -8,13 +8,11 @@ import torch.nn.functional as F
 
 try:
     import wandb
-
     wandb_enabled = True
 except ImportError:
     wandb_enabled = False
 
 wandb_enabled = False
-
 
 def proj_lp(v, xi, p):
     if p == 2:

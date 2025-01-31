@@ -12,7 +12,7 @@ from PIL import Image
 from utils import energy_profiler
 
 
-@energy_profiler
+# @energy_profiler
 def main():
     # Mean and std deviation of the dataset ImageNet (ResNet-18 pre-trained model)
     mean = [0.485, 0.456, 0.406]
@@ -20,7 +20,7 @@ def main():
 
     img_size = 224
 
-    # Transformation pour le dataset STL-10
+    # STL-10 transformations
     transform = transforms.Compose(
         [
             transforms.Resize((img_size, img_size)),
@@ -29,7 +29,7 @@ def main():
         ]
     )
 
-    # Télécharger et charger le dataset STL-10 pour l'entraînement
+    # Donwload STL-10 dataset
     train_set = torchvision.datasets.STL10(
         root="./data",
         split="train",
@@ -37,14 +37,12 @@ def main():
         transform=transform,
     )
 
-    # Création du DataLoader pour l'entraînement
     train_loader = torch.utils.data.DataLoader(
         train_set,
         batch_size=100,
         shuffle=True,
     )
 
-    # Télécharger et charger le dataset STL-10 pour les tests
     test_set = torchvision.datasets.STL10(
         root="./data",
         split="test",
@@ -54,7 +52,7 @@ def main():
 
     test_loader = torch.utils.data.DataLoader(test_set, batch_size=100, shuffle=False)
 
-    # Classes du dataset STL-10
+    # STL-10 classes
     classes = (
         "airplane",
         "bird",
@@ -68,10 +66,10 @@ def main():
         "truck",
     )
 
-    # Charger le modèle ResNet-18 préentraîné (ImageNet)
+    # Load pre-trained ResNet-18 model
     model = models.resnet18(weights=models.ResNet18_Weights.DEFAULT)
 
-    # Adapter le modèle pour STL-10 (10 classes au lieu de 1000 d'Imagenet)
+    # Change the output layer (1000 classes to 10 classes)
     model.fc = nn.Linear(model.fc.in_features, len(classes))
 
     # Fine-tuning
@@ -151,7 +149,7 @@ def main():
         image = Image.open(image_path)
         return transform(image).unsqueeze(0)
 
-    # Génération de la perturbation universelle
+    # Universal perturbation generation
     v = universal_perturbation(
         train_loader,
         test_loader,
@@ -167,10 +165,10 @@ def main():
     print("L inf", torch.norm(v, p=float("inf")).item())
     print("L2", torch.norm(v, p=2).item())
 
-    # Sauvegarde de la perturbation universelle
+    # Save the universal perturbation
     torch.save(v, "universal_perturbation_stl10_resnet18.pth")
 
-    # Charger et tester une image
+    # Test
     test_img = load_image("data/demo_universal/test_img.jpg").to(device)
 
     test_img_label = classes[int(torch.argmax(model(test_img)).item())]

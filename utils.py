@@ -5,10 +5,7 @@ from torchvision import transforms
 from torchvision import models
 import os
 from tqdm import tqdm
-import wandb
 
-import time
-import psutil
 from PIL import Image
 import torch
 from torchvision import transforms
