@@ -1,5 +1,5 @@
 import numpy as np
-from deepfool import deepfool
+from deepfool import deepfool_yolo
 
 
 def proj_lp(v, xi, p):
@@ -79,7 +79,7 @@ def universal_perturbation(
                 print(">> k = ", k, ", pass #", itr)
 
                 # Compute adversarial perturbation
-                dr, iter, _, _ = deepfool(
+                dr, iter, _, _ = deepfool_yolo(
                     cur_img + v,
                     f,
                     grads,
