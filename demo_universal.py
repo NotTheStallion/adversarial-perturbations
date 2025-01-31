@@ -61,7 +61,7 @@ classes = (
     "truck",
 )
 
-# Charger le modèle ResNet-18 préentraîné (ImageNet)
+# Charger le modèle ResNet-18 préentraîné
 model = models.resnet18(pretrained=True)
 
 # Adapter le modèle pour STL-10 (10 classes au lieu de 1000 d'Imagenet)
@@ -131,7 +131,6 @@ v = universal_perturbation(
     train_loader, model, v_size=96, device=device, delta=0.6, num_classes=len(classes)
 )
 
-# Charger et tester une image
 test_img = load_image("data/demo_universal/test_img.jpg").to(device)
 
 test_img_label = classes[int(torch.argmax(model(test_img)).item())]

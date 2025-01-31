@@ -43,7 +43,6 @@ def universal_perturbation(
     overshoot=0.02,
     max_iter_df=10,
 ):
-    # Set model to evaluation mode
     f.eval()
 
     v = torch.zeros_like(next(iter(dataloader))[0][0]).to(device)
@@ -60,7 +59,6 @@ def universal_perturbation(
             images = images.to(device)
 
             for img in images:
-                # Apply the resize transformation before passing to the model
                 img_resized = resize_tensor(img, v_size).to(device)
 
                 img_resized = img_resized.unsqueeze(0)

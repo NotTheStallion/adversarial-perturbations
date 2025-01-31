@@ -18,17 +18,13 @@ model.max_det = 100  # max number of detections
 LOW_RES = (320, 180)
 
 def detect_and_draw(frame):
-    # Create low-res copy
     low_res_frame = cv2.resize(frame, LOW_RES)
     
-    # Perform detection
     results = model(low_res_frame, verbose=False)
 
-    # Scale bounding boxes
     scale_x = frame.shape[1] / LOW_RES[0]
     scale_y = frame.shape[0] / LOW_RES[1]
 
-    # Draw bounding boxes on high-res frame
     for detection in results[0].boxes.data:
         x1, y1, x2, y2, conf, cls = detection
         x1, y1, x2, y2 = int(x1*scale_x), int(y1*scale_y), int(x2*scale_x), int(y2*scale_y)
@@ -38,7 +34,6 @@ def detect_and_draw(frame):
 
     return frame
 
-# Define your stream URL
 #stream_url = "https://edge01.london.nginx.hdontap.com/hosb5/ng_showcase-coke_bottle-street_fixed.stream/chunklist_w464099566.m3u8"
 stream_url = "pete.mp4" 
 

@@ -74,7 +74,7 @@ def process_stream():
         if not ret:
             break
         frame_count += 1
-        if frame_count % 30 == 0:  # Process every 30th frame
+        if frame_count % 30 == 0:  
             processed_frame = detect_and_draw(frame, frame_count)
             yield cv2.cvtColor(processed_frame, cv2.COLOR_BGR2RGB)
     cap.release()
